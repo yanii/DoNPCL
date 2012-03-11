@@ -5,6 +5,9 @@
 #include <pcl/search/kdtree.h>
 #include <pcl/search/organized.h>
 
+
+#define PCL_INSTANTIATE_DoNFilter(T) template class PCL_EXPORTS pcl::DoNFilter<T>;
+
 template <typename PointT> double
 pcl::DoNFilter<PointT>::computePointWeight(const int pid,const std::vector<int> &indices, const std::vector<float> &distances)
 {
