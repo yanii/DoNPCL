@@ -104,5 +104,16 @@ int main(int argc, char *argv[])
 
         // Save filtered output
         pcl::io::savePCDFile (outfile.c_str (), outcloud);
+
+        // visualize normals
+        //pcl::visualization::PCLVisualizer viewer("PCL Viewer");
+        //viewer.setBackgroundColor (0.0, 0.0, 0.5);
+        //viewer.addPointCloudNormals<pcl::PointXYZ,pcl::Normal>(cloud, normals);
+
+        //while (!viewer.wasStopped ())
+        //{
+        //  viewer.spinOnce ();
+        //}
+
         return (0);
 }
