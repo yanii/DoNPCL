@@ -1,62 +1,104 @@
+ /*
+  * Software License Agreement (BSD License)
+  *
+  *  Point Cloud Library (PCL) - www.pointclouds.org
+  *  Copyright (c) 2010-2011, Willow Garage, Inc.
+  *  Copyright (c) 2012, Yani Ioannou <yani.ioannou@gmail.com>
+  *
+  *  All rights reserved.
+  *
+  *  Redistribution and use in source and binary forms, with or without
+  *  modification, are permitted provided that the following conditions
+  *  are met:
+  *
+  *   * Redistributions of source code must retain the above copyright
+  *     notice, this list of conditions and the following disclaimer.
+  *   * Redistributions in binary form must reproduce the above
+  *     copyright notice, this list of conditions and the following
+  *     disclaimer in the documentation and/or other materials provided
+  *     with the distribution.
+  *   * Neither the name of Willow Garage, Inc. nor the names of its
+  *     contributors may be used to endorse or promote products derived
+  *     from this software without specific prior written permission.
+  *
+  *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+  *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+  *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+  *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+  *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+  *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+  *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+  *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+  *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+  *  POSSIBILITY OF SUCH DAMAGE.
+  *
+  */
 #ifndef PCL_FILTERS_DON_IMPL_H_
 #define PCL_FILTERS_DON_IMPL_H_
 
-#include <pcl/filters/don.h>
 #include <pcl/search/kdtree.h>
 #include <pcl/search/organized.h>
+#include <pcl/filters/normal_space.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/filters/don.h>
 
+template<typename PointT>
+  void
+  pcl::DoNFilter<PointT>::applyFilter (PointCloud &output)
+  {
+    if (scaleSmall == 0)
+    {
+      PCL_ERROR ("[pcl::DoNFilter::applyFilter] Need a scale_small value given before continuing.\n");
+      return;
+    }
+    if (!tree_)
+    {
+      if (input_->isOrganized ())
+      {
+        tree_.reset (new pcl::search::OrganizedNeighbor<PointT> ());
+      }
+      else
+      {
+        tree_.reset (new pcl::search::KdTree<PointT> (false));
+      }
+    }
+    tree_->setInputCloud (input_);
+
+    std::vector<int> k_indices;
+    std::vector<float> k_distances;
+
+    //use the input point cloud as the output
+    output = *input_;
+
+    // Compute normals using both small and large scales at each point
+    pcl::NormalEstimation<PointT, pcl::Normal> ne;
+    ne.setInputCloud (this->getInputCloud ());
+    ne.setSearchMethod (tree_);
+
+    //the normals calculated with the small scale
+    pcl::PointCloud<pcl::Normal>::Ptr normals_small_scale (new pcl::PointCloud<pcl::Normal>);
+    ne.setRadiusSearch (scaleSmall);
+    ne.compute (*normals_small_scale);
+
+    //the normals calculated with the large scale
+    pcl::PointCloud<pcl::Normal>::Ptr normals_large_scale (new pcl::PointCloud<pcl::Normal>);
+    ne.setRadiusSearch (scaleLarge);
+    ne.compute (*normals_large_scale);
+
+    //perform subtraction
+    for (size_t point_id = 0; point_id < input_->points.size (); ++point_id)
+    {
+      Eigen::Vector3f normal_large = normals_large_scale->at(point_id).getNormalVector3fMap ();
+      Eigen::Vector3f normal_small = normals_small_scale->at(point_id).getNormalVector3fMap ();
+      Eigen::Vector3i point_color = output.at(point_id).getRGBVector3i();
+
+      //output->at (point_id) = normal_large - normal_small;
+      //output->at (point_id).intensity = computePointWeight (point_id, normal_large, normal_small);
+    }
+  }
 
 #define PCL_INSTANTIATE_DoNFilter(T) template class PCL_EXPORTS pcl::DoNFilter<T>;
 
-template <typename PointT> double
-pcl::DoNFilter<PointT>::computePointWeight(const int pid,const std::vector<int> &indices, const std::vector<float> &distances)
-{
-	double BF = 0, W = 0;
-
-	// For each neighbor
-	for (size_t n_id = 0; n_id < indices.size (); ++n_id)
-	{
-		double id = indices[n_id];
-		double dist = std::sqrt (distances[n_id]);
-		double intensity_dist = abs (input_->points[pid].intensity - input_->points[id].intensity);
-
-		/*double weight = kernel (dist, scaleSmall) * kernel (intensity_dist, scaleLarge);
-
-		BF += weight * input_->points[id].intensity;
-		W += weight;*/
-	}
-	return (BF / W);
-}
-
-template <typename PointT> void
-pcl::DoNFilter<PointT>::applyFilter (PointCloud &output)
-{
-	if(scaleSmall == 0)
-	{
-		PCL_ERROR ("[pcl::DoNFilter::applyFilter] Need a scale_small value given before continuing.\n");
-		return;
-	}
-	if (!tree_)
-	{
-		if (input_->isOrganized ()){
-			tree_.reset(new pcl::search::OrganizedNeighbor<PointT>());
-		}
-		else{
-			tree_.reset(new pcl::search::KdTree<PointT> (false));
-		}
-	}
-	tree_->setInputCloud (input_);
-
-	std::vector<int> k_indices;
-	std::vector<float> k_distances;
-
-	output = *input_;
-
-	for (size_t point_id = 0; point_id < input_->points.size (); ++point_id)
-	{
-		tree_->radiusSearch (point_id, scaleSmall * 2, k_indices, k_distances);
-
-		output.points[point_id].intensity = computePointWeight (point_id, k_indices, k_distances);
-	}
-}
 #endif // PCL_FILTERS_DON_H_

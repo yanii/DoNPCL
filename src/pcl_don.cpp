@@ -8,17 +8,13 @@
 
 #include "pcl_don.h"
 #include <boost/program_options.hpp>
-
 #include <string>
+
+#include <pcl/search/kdtree.h>
 
 namespace po = boost::program_options;
 
-namespace DoN{
-	//
-}
-
-
-typedef pcl::PointXYZI PointT;
+typedef pcl::PointXYZRGB PointT;
 
 int main(int argc, char *argv[])
 {
@@ -72,42 +68,17 @@ int main(int argc, char *argv[])
 	// Output Cloud = Input Cloud
 	pcl::PointCloud<PointT> outcloud = *cloud;
 
-	// Set up KDTree
-	/*pcl::KdTreeFLANN<PointT>::Ptr tree (new pcl::KdTreeFLANN<PointT>);
-	tree->setInputCloud (cloud);
-	 */
+        // Set up KDTree
+	pcl::search::KdTree<PointT>::Ptr tree (new pcl::search::KdTree<PointT>());
 
-	// Neighbors containers
-	/*std::vector<int> k_indices;
-	std::vector<float> k_distances;
-	 */
-	// Main Loop
-	/*for (int point_id = 0; point_id < pnumber; ++point_id)
-	{
-		float BF = 0;
-		float W = 0;
+        pcl::DoNFilter<PointT> donf;
+        donf.setInputCloud (cloud);
+        donf.setSearchMethod (tree);
+        donf.setScaleSmall (scale1);
+        donf.setScaleSmall (scale2);
+        donf.filter (outcloud);
 
-		tree->radiusSearch(point_id, 2 * scale1, k_indices, k_distances);
-
-		// For each neighbor
-		for (size_t n_id = 0; n_id < k_indices.size (); ++n_id)
-		{
-			float id = k_indices.at (n_id);
-			float dist = sqrt (k_distances.at (n_id));
-			float intensity_dist = abs (cloud->points[point_id].intensity - cloud->points[id].intensity);
-
-			float w_a = G (dist, scale1);
-			float w_b = G (intensity_dist, scale2);
-			float weight = w_a * w_b;
-
-			BF += weight * cloud->points[id].intensity;
-			W += weight;
-		}
-
-		outcloud.points[point_id].intensity = BF / W;
-	}*/
-
-	// Save filtered output
-	pcl::io::savePCDFile (outfile.c_str(), outcloud);
-	return (0);
+        // Save filtered output
+        pcl::io::savePCDFile (outfile.c_str (), outcloud);
+        return (0);
 }

@@ -12,6 +12,7 @@
 #include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/filters/don.h>
 
 using namespace pcl;
 using namespace std;
