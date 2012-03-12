@@ -74,7 +74,7 @@ template<typename PointT>
     output = *input_;
 
     // Compute normals using both small and large scales at each point
-    //pcl::NormalEstimation<PointT, pcl::Normal> ne;
+    // TODO: Use IntegralImageNormalEstimation for organized data
     pcl::NormalEstimationOMP<PointT, pcl::Normal> ne;
     ne.setInputCloud (this->getInputCloud ());
     ne.setSearchMethod (tree_);
@@ -97,9 +97,9 @@ template<typename PointT>
 
       Eigen::Vector3f don = normal_large - normal_small;
       //Eigen::Vector3i point_color = output.at(point_id).getRGBVector3i();
-      output.at(point_id).r = (don.x()/2.0f+1.0f)*255;
-      output.at(point_id).g = (don.y()/2.0f+1.0f)*255;
-      output.at(point_id).b = (don.z()/2.0f+1.0f)*255;
+      output.at(point_id).r = (don.x()/2.0f+0.5f)*255;
+      output.at(point_id).g = (don.y()/2.0f+0.5f)*255;
+      output.at(point_id).b = (don.z()/2.0f+0.5f)*255;
 
       //output->at (point_id).intensity = normal_large - normal_small;
     }
