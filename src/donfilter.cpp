@@ -38,7 +38,7 @@
 
 #include <pcl/point_types.h>
 #include <pcl/impl/instantiate.hpp>
-#include <pcl/filters/don.h>
-#include <pcl/filters/impl/don.hpp>
+#include <pcl/filters/donfilter.h>
+#include <pcl/filters/impl/donfilter.hpp>
 
 PCL_INSTANTIATE(DoNFilter, (pcl::PointXYZRGB)(pcl::PointXYZRGBA)(pcl::PointXYZRGBNormal))

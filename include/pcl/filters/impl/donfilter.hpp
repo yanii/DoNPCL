@@ -43,7 +43,7 @@
 #include <pcl/filters/normal_space.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl/features/normal_3d_omp.h>
-#include <pcl/filters/don.h>
+#include <pcl/filters/donfilter.h>
 
 template<typename PointT>
   void
