@@ -6,7 +6,7 @@
  * @date 2012-03-11
  */
 
-#include "pcl_don.h"
+#include "pcl_donfilter.h"
 #include <boost/program_options.hpp>
 #include <string>
 
@@ -92,14 +92,15 @@ int main(int argc, char *argv[])
         // Set up KDTree
 	pcl::search::KdTree<PointT>::Ptr tree (new pcl::search::KdTree<PointT>());
 
-        pcl::DifferenceOfNormalsEstimation<PointT> don;
-        don.setInputCloud (cloud);
+        pcl::DoNFilter<PointT> donf;
+        donf.setInputCloud (cloud);
+        donf.setSearchMethod (tree);
+        donf.setScaleSmall (scale1);
+        donf.setScaleSmall (scale2);
 
-        don.setInputCloudSmall (cloud);
-
-        if(don.initCompute ()){
-          don.computeFeature();
-        }
+        cout << "Running DoN filter...";
+        donf.filter (outcloud);
+        cout << "done." << endl;
 
         // Save filtered output
         pcl::io::savePCDFile (outfile.c_str (), outcloud);

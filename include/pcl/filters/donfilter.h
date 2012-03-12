@@ -44,10 +44,13 @@
 namespace pcl
 {
   /** \brief A Difference of Normals (DoN) scale filter implementation for point cloud data. Uses the RGB color data channels.
+   *
    * \note For more information please see
-   * <b>Yani Ioannou. Automatic Urban Modelling using Mobile Urban LIDAR Data.
-   * Thesis (Master, Computing), Queen's University, March, 2010.</b>
+   *    <b>Yani Ioannou. Automatic Urban Modelling using Mobile Urban LIDAR Data.
+   *    Thesis (Master, Computing), Queen's University, March, 2010.</b>
+   *
    * \author Yani Ioannou.
+   * \ingroup filters
    */
   template<typename PointT>
     class DoNFilter : public Filter<PointT>
