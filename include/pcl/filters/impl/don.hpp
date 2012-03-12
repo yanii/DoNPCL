@@ -92,10 +92,14 @@ template<typename PointT>
     {
       Eigen::Vector3f normal_large = normals_large_scale->at(point_id).getNormalVector3fMap ();
       Eigen::Vector3f normal_small = normals_small_scale->at(point_id).getNormalVector3fMap ();
-      Eigen::Vector3i point_color = output.at(point_id).getRGBVector3i();
 
-      //output->at (point_id) = normal_large - normal_small;
-      //output->at (point_id).intensity = computePointWeight (point_id, normal_large, normal_small);
+      Eigen::Vector3f don = normal_large - normal_small;
+      //Eigen::Vector3i point_color = output.at(point_id).getRGBVector3i();
+      output.at(point_id).r =  don.x()*255;
+      output.at(point_id).g =  don.y()*255;
+      output.at(point_id).b =  don.z()*255;
+
+      //output->at (point_id).intensity = normal_large - normal_small;
     }
   }
 

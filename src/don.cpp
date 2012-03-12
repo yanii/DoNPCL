@@ -41,4 +41,4 @@
 #include <pcl/filters/don.h>
 #include <pcl/filters/impl/don.hpp>
 
-PCL_INSTANTIATE(DoNFilter, (pcl::PointXYZRGB)(pcl::PointXYZRGBNormal))
+PCL_INSTANTIATE(DoNFilter, (pcl::PointXYZRGB)(pcl::PointXYZRGBA)(pcl::PointXYZRGBNormal))

@@ -10,6 +10,8 @@
 #include <boost/program_options.hpp>
 #include <string>
 
+#include <pcl/common/point_operators.h>
+#include <pcl/common/io.h>
 #include <pcl/search/kdtree.h>
 
 namespace po = boost::program_options;
@@ -60,9 +62,28 @@ int main(int argc, char *argv[])
 	bool verbose = vm.count("verbose");
 
 
-	// Load cloud
+	// Load cloud in blob format
+	sensor_msgs::PointCloud2 blob;
+	pcl::io::loadPCDFile (infile.c_str(), blob);
+
+	//If it is does not have an 'rgb' field, convert
+	bool isRGB = false;
+	for(vector<sensor_msgs::PointField>::iterator i = blob.fields.begin(); i != blob.fields.end(); i++){
+	  if(i->name == "rgb"){
+	    isRGB = true;
+	    break;
+	  }
+	}
 	pcl::PointCloud<PointT>::Ptr cloud (new pcl::PointCloud<PointT>);
-	pcl::io::loadPCDFile (infile.c_str(), *cloud);
+	if(!isRGB){
+	  cout << "Converting point cloud...";
+	  PointCloud<pcl::PointXYZ>::Ptr xyzcloud (new pcl::PointCloud<pcl::PointXYZ>);
+          pcl::fromROSMsg (blob, *xyzcloud);
+	  copyPointCloud<pcl::PointXYZ, PointT>(*xyzcloud, *cloud);
+	  cout << "done." << endl;
+	}else{
+          pcl::fromROSMsg (blob, *cloud);
+	}
 	int pnumber = (int)cloud->size ();
 
 	// Output Cloud = Input Cloud
@@ -76,7 +97,10 @@ int main(int argc, char *argv[])
         donf.setSearchMethod (tree);
         donf.setScaleSmall (scale1);
         donf.setScaleSmall (scale2);
+
+        cout << "Running DoN filter...";
         donf.filter (outcloud);
+        cout << "done." << endl;
 
         // Save filtered output
         pcl::io::savePCDFile (outfile.c_str (), outcloud);

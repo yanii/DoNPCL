@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 project(DoNPCL)
+
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+
+SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
+SET(LIBRARY_OUTPUT_PATH  ${PROJECT_BINARY_DIR}/lib)
 
 #Note: Eclipse automatically picks up include paths with this on!
 SET(CMAKE_VERBOSE_MAKEFILE ON)
