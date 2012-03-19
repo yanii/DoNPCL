@@ -38,6 +38,8 @@
 #ifndef PCL_FILTERS_DON_IMPL_H_
 #define PCL_FILTERS_DON_IMPL_H_
 
+#include <limits>
+
 #include <pcl/search/kdtree.h>
 #include <pcl/search/organized.h>
 #include <pcl/filters/normal_space.h>
@@ -75,6 +77,7 @@ template<typename PointT>
     pcl::NormalEstimationOMP<PointT, pcl::Normal> ne;
     ne.setInputCloud (this->getInputCloud ());
     ne.setSearchMethod (tree_);
+    ne.setViewPoint(0,0,std::numeric_limits<float>::max());
 
     //the normals calculated with the small scale
     pcl::PointCloud<pcl::Normal>::Ptr normals_small_scale (new pcl::PointCloud<pcl::Normal>);

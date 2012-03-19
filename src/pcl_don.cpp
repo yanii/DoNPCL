@@ -98,6 +98,8 @@ int main(int argc, char *argv[])
         pcl::NormalEstimationOMP<PointT, PointNT> ne;
         ne.setInputCloud (cloud);
         ne.setSearchMethod (tree);
+        // NOTE: this is very important, so that we can ensure normals are all pointed in the same direction!
+        ne.setViewPoint(0,0,std::numeric_limits<float>::max());
 
         if(scale1 >= scale2){
           cerr << "Error: Large scale must be > small scale!" << endl;
