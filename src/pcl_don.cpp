@@ -136,11 +136,14 @@ int main(int argc, char *argv[])
         //Compute DoN
         don.computeFeature(*doncloud);
 
-        cout << "Filtering out DoN > 0" << endl;
+        cout << "Filtering out zero DoN" << endl;
 
         // build the condition
         pcl::ConditionOr<PointOutT>::Ptr range_cond (new
           pcl::ConditionOr<PointOutT> ());
+        range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
+                  pcl::FieldComparison<PointOutT> ("curvature", pcl::ComparisonOps::GT, 0.0)));
+        /*
         range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
           pcl::FieldComparison<PointOutT> ("normal_x", pcl::ComparisonOps::GT, 0.0)));
         range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
@@ -154,7 +157,7 @@ int main(int argc, char *argv[])
           pcl::FieldComparison<PointOutT> ("normal_y", pcl::ComparisonOps::LT, 0.0)));
         range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
           pcl::FieldComparison<PointOutT> ("normal_z", pcl::ComparisonOps::LT, 0.0)));
-
+         */
         // build the filter
         pcl::ConditionalRemoval<PointOutT> condrem (range_cond);
         condrem.setInputCloud (doncloud);

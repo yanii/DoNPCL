@@ -95,6 +95,7 @@ pcl::DifferenceOfNormalsEstimation<PointInT, PointNT, PointOutT>::computeFeature
         !pcl_isfinite (output.at(point_id).normal_z)){
       output.at(point_id).getNormalVector3fMap () = Eigen::Vector3f(0,0,0);
     }
+    output.at(point_id).curvature = output.at(point_id).getNormalVector3fMap ().norm();
   }
 }
 
