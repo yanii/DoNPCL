@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
         donf.setInputCloud (cloud);
         donf.setSearchMethod (tree);
         donf.setScaleSmall (scale1);
-        donf.setScaleSmall (scale2);
+        donf.setScaleLarge (scale2);
 
         cout << "Running DoN filter...";
         donf.filter (outcloud);

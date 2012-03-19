@@ -27,10 +27,10 @@ typedef typename pcl::search::Search<PointT>::Ptr SearchPtr;
 int main(int argc, char *argv[])
 {
 	///The smallest scale to use in the DoN filter.
-	float scale1;
+	double scale1;
 
 	///The smallest scale to use in the DoN filter.
-	float scale2;
+	double scale2;
 
 	///The file to read from.
 	string infile;
@@ -45,8 +45,8 @@ int main(int argc, char *argv[])
 		("verbose", "display verbose messages")
 		("help", "produce help message")
 		//Options
-		("smallscale", po::value<float>(&scale1)->required(), "the small scale to use in the DoN filter")
-		("largescale", po::value<float>(&scale2)->required(), "the large scale to use in the DoN filter")
+		("smallscale", po::value<double>(&scale1)->required(), "the small scale to use in the DoN filter")
+		("largescale", po::value<double>(&scale2)->required(), "the large scale to use in the DoN filter")
 		("infile", po::value<string>(&infile)->required(), "the file to read a point cloud from")
 		("outfile", po::value<string>(&outfile)->required(), "the file to write the DoN point cloud & normals to")
 		;
