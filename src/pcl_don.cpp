@@ -12,6 +12,7 @@
 
 #include <pcl/common/point_operators.h>
 #include <pcl/common/io.h>
+#include <pcl/search/organized.h>
 #include <pcl/search/kdtree.h>
 #include <pcl/features/normal_3d_omp.h>
 #include <pcl/filters/conditional_removal.h>
@@ -21,6 +22,7 @@ namespace po = boost::program_options;
 typedef pcl::PointXYZRGB PointT;
 typedef pcl::PointNormal PointNT;
 typedef pcl::PointNormal PointOutT;
+typedef typename pcl::search::Search<PointT>::Ptr SearchPtr;
 
 int main(int argc, char *argv[])
 {
@@ -79,14 +81,28 @@ int main(int argc, char *argv[])
 
 	int pnumber = (int)cloud->size ();
 
-        // Set up KDTree
-	pcl::search::KdTree<PointT>::Ptr tree (new pcl::search::KdTree<PointT>());
+	SearchPtr tree;
+
+        if (cloud->isOrganized ())
+        {
+          tree.reset (new pcl::search::OrganizedNeighbor<PointT> ());
+        }
+        else
+        {
+          tree.reset (new pcl::search::KdTree<PointT> (false));
+        }
+	tree->setInputCloud (cloud);
 
         // Compute normals using both small and large scales at each point
         // TODO: Use IntegralImageNormalEstimation for organized data
         pcl::NormalEstimationOMP<PointT, PointNT> ne;
         ne.setInputCloud (cloud);
         ne.setSearchMethod (tree);
+
+        if(scale1 >= scale2){
+          cerr << "Error: Large scale must be > small scale!" << endl;
+          exit(EXIT_FAILURE);
+        }
 
         //the normals calculated with the small scale
         cout << "Calculating normals for scale..." << scale1 << endl;

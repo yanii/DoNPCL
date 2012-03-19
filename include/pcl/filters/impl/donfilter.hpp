@@ -67,9 +67,6 @@ template<typename PointT>
     }
     tree_->setInputCloud (input_);
 
-    std::vector<int> k_indices;
-    std::vector<float> k_distances;
-
     //use the input point cloud as the output
     output = *input_;
 
@@ -92,16 +89,11 @@ template<typename PointT>
     //perform subtraction
     for (size_t point_id = 0; point_id < input_->points.size (); ++point_id)
     {
-      Eigen::Vector3f normal_large = normals_large_scale->at(point_id).getNormalVector3fMap ();
-      Eigen::Vector3f normal_small = normals_small_scale->at(point_id).getNormalVector3fMap ();
-
-      Eigen::Vector3f don = normal_large - normal_small;
-      //Eigen::Vector3i point_color = output.at(point_id).getRGBVector3i();
+      Eigen::Vector3f don = normals_large_scale->at(point_id).getNormalVector3fMap ()
+          - normals_small_scale->at(point_id).getNormalVector3fMap ();
       output.at(point_id).r = (don.x()/2.0f+0.5f)*255;
       output.at(point_id).g = (don.y()/2.0f+0.5f)*255;
       output.at(point_id).b = (don.z()/2.0f+0.5f)*255;
-
-      //output->at (point_id).intensity = normal_large - normal_small;
     }
   }
 
