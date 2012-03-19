@@ -148,6 +148,13 @@ int main(int argc, char *argv[])
         range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
           pcl::FieldComparison<PointOutT> ("normal_z", pcl::ComparisonOps::GT, 0.0)));
 
+        range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
+          pcl::FieldComparison<PointOutT> ("normal_x", pcl::ComparisonOps::LT, 0.0)));
+        range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
+          pcl::FieldComparison<PointOutT> ("normal_y", pcl::ComparisonOps::LT, 0.0)));
+        range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
+          pcl::FieldComparison<PointOutT> ("normal_z", pcl::ComparisonOps::LT, 0.0)));
+
         // build the filter
         pcl::ConditionalRemoval<PointOutT> condrem (range_cond);
         condrem.setInputCloud (doncloud);
