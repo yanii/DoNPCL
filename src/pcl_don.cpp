@@ -13,13 +13,14 @@
 #include <pcl/common/point_operators.h>
 #include <pcl/common/io.h>
 #include <pcl/search/kdtree.h>
-#include <pcl/features/normal_3d.h>
 #include <pcl/features/normal_3d_omp.h>
+#include <pcl/filters/conditional_removal.h>
 
 namespace po = boost::program_options;
 
 typedef pcl::PointXYZRGB PointT;
 typedef pcl::PointNormal PointNT;
+typedef pcl::PointNormal PointOutT;
 
 int main(int argc, char *argv[])
 {
@@ -100,13 +101,13 @@ int main(int argc, char *argv[])
         ne.compute (*normals_large_scale);
 
         // Create output cloud for DoN results
-        PointCloud<PointNT>::Ptr doncloud (new pcl::PointCloud<PointNT>);
+        PointCloud<PointOutT>::Ptr doncloud (new pcl::PointCloud<PointOutT>);
         pcl::fromROSMsg (blob, *xyzcloud);
-        copyPointCloud<pcl::PointXYZ, PointNT>(*xyzcloud, *doncloud);
+        copyPointCloud<pcl::PointXYZ, PointOutT>(*xyzcloud, *doncloud);
 
         cout << "Calculating DoN... " << endl;
         // Create DoN operator
-        pcl::DifferenceOfNormalsEstimation<PointT, PointNT, PointNT> don;
+        pcl::DifferenceOfNormalsEstimation<PointT, PointNT, PointOutT> don;
         don.setInputCloud (cloud);
         don.setNormalScaleLarge(normals_large_scale);
         don.setNormalScaleSmall(normals_small_scale);
@@ -116,10 +117,34 @@ int main(int argc, char *argv[])
           exit(EXIT_FAILURE);
         }
 
+        //Compute DoN
         don.computeFeature(*doncloud);
 
+        cout << "Filtering out DoN > 0" << endl;
+
+        // build the condition
+        pcl::ConditionOr<PointOutT>::Ptr range_cond (new
+          pcl::ConditionOr<PointOutT> ());
+        range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
+          pcl::FieldComparison<PointOutT> ("normal_x", pcl::ComparisonOps::GT, 0.0)));
+        range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
+          pcl::FieldComparison<PointOutT> ("normal_y", pcl::ComparisonOps::GT, 0.0)));
+        range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
+          pcl::FieldComparison<PointOutT> ("normal_z", pcl::ComparisonOps::GT, 0.0)));
+
+        // build the filter
+        pcl::ConditionalRemoval<PointOutT> condrem (range_cond);
+        condrem.setInputCloud (doncloud);
+
+
+        pcl::PointCloud<PointOutT>::Ptr doncloud_filtered (new pcl::PointCloud<PointOutT>);
+
+        // apply filter
+        condrem.filter (*doncloud_filtered);
+
+
         sensor_msgs::PointCloud2 outblob;
-        pcl::toROSMsg(*doncloud, outblob);
+        pcl::toROSMsg(*doncloud_filtered, outblob);
 
         // Save filtered output
         pcl::io::savePCDFile (outfile.c_str (), outblob);
