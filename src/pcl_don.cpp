@@ -83,109 +83,97 @@ int main(int argc, char *argv[])
 
 	SearchPtr tree;
 
-        if (cloud->isOrganized ())
-        {
-          tree.reset (new pcl::search::OrganizedNeighbor<PointT> ());
-        }
-        else
-        {
-          tree.reset (new pcl::search::KdTree<PointT> (false));
-        }
+	if (cloud->isOrganized ())
+	{
+	  tree.reset (new pcl::search::OrganizedNeighbor<PointT> ());
+	}
+	else
+	{
+	  tree.reset (new pcl::search::KdTree<PointT> (false));
+	}
 	tree->setInputCloud (cloud);
 
-        // Compute normals using both small and large scales at each point
-        // TODO: Use IntegralImageNormalEstimation for organized data
-        pcl::NormalEstimationOMP<PointT, PointNT> ne;
-        ne.setInputCloud (cloud);
-        ne.setSearchMethod (tree);
-        // NOTE: this is very important, so that we can ensure normals are all pointed in the same direction!
-        ne.setViewPoint(0,0,std::numeric_limits<float>::max());
+	// Compute normals using both small and large scales at each point
+	// TODO: Use IntegralImageNormalEstimation for organized data
+	pcl::NormalEstimationOMP<PointT, PointNT> ne;
+	ne.setInputCloud (cloud);
+	ne.setSearchMethod (tree);
+	// NOTE: this is very important, so that we can ensure normals are all pointed in the same direction!
+	ne.setViewPoint(std::numeric_limits<float>::max(),std::numeric_limits<float>::max(),std::numeric_limits<float>::max());
 
-        if(scale1 >= scale2){
-          cerr << "Error: Large scale must be > small scale!" << endl;
-          exit(EXIT_FAILURE);
-        }
+	if(scale1 >= scale2){
+	  cerr << "Error: Large scale must be > small scale!" << endl;
+	  exit(EXIT_FAILURE);
+	}
 
-        //the normals calculated with the small scale
-        cout << "Calculating normals for scale..." << scale1 << endl;
-        pcl::PointCloud<PointNT>::Ptr normals_small_scale (new pcl::PointCloud<PointNT>);
-        ne.setRadiusSearch (scale1);
-        ne.compute (*normals_small_scale);
+	//the normals calculated with the small scale
+	cout << "Calculating normals for scale..." << scale1 << endl;
+	pcl::PointCloud<PointNT>::Ptr normals_small_scale (new pcl::PointCloud<PointNT>);
+	ne.setRadiusSearch (scale1);
+	ne.compute (*normals_small_scale);
 
-        cout << "Calculating normals for scale..." << scale2 << endl;
-        //the normals calculated with the large scale
-        pcl::PointCloud<PointNT>::Ptr normals_large_scale (new pcl::PointCloud<PointNT>);
-        ne.setRadiusSearch (scale2);
-        ne.compute (*normals_large_scale);
+	cout << "Calculating normals for scale..." << scale2 << endl;
+	//the normals calculated with the large scale
+	pcl::PointCloud<PointNT>::Ptr normals_large_scale (new pcl::PointCloud<PointNT>);
+	ne.setRadiusSearch (scale2);
+	ne.compute (*normals_large_scale);
 
-        // Create output cloud for DoN results
-        PointCloud<PointOutT>::Ptr doncloud (new pcl::PointCloud<PointOutT>);
-        pcl::fromROSMsg (blob, *xyzcloud);
-        copyPointCloud<pcl::PointXYZ, PointOutT>(*xyzcloud, *doncloud);
+	// Create output cloud for DoN results
+	PointCloud<PointOutT>::Ptr doncloud (new pcl::PointCloud<PointOutT>);
+	pcl::fromROSMsg (blob, *xyzcloud);
+	copyPointCloud<pcl::PointXYZ, PointOutT>(*xyzcloud, *doncloud);
 
-        cout << "Calculating DoN... " << endl;
-        // Create DoN operator
-        pcl::DifferenceOfNormalsEstimation<PointT, PointNT, PointOutT> don;
-        don.setInputCloud (cloud);
-        don.setNormalScaleLarge(normals_large_scale);
-        don.setNormalScaleSmall(normals_small_scale);
+	cout << "Calculating DoN... " << endl;
+	// Create DoN operator
+	pcl::DifferenceOfNormalsEstimation<PointT, PointNT, PointOutT> don;
+	don.setInputCloud (cloud);
+	don.setNormalScaleLarge(normals_large_scale);
+	don.setNormalScaleSmall(normals_small_scale);
 
-        if(!don.initCompute ()){
-          std::cerr << "Error: Could not intialize DoN feature operator" << std::endl;
-          exit(EXIT_FAILURE);
-        }
+	if(!don.initCompute ()){
+	  std::cerr << "Error: Could not intialize DoN feature operator" << std::endl;
+	  exit(EXIT_FAILURE);
+	}
 
-        //Compute DoN
-        don.computeFeature(*doncloud);
+	//Compute DoN
+	don.computeFeature(*doncloud);
 
-        cout << "Filtering out zero DoN" << endl;
+	cout << "Filtering out zero DoN" << endl;
 
-        // build the condition
-        pcl::ConditionOr<PointOutT>::Ptr range_cond (new
-          pcl::ConditionOr<PointOutT> ());
-        range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
-                  pcl::FieldComparison<PointOutT> ("curvature", pcl::ComparisonOps::GT, 0.0)));
-        /*
-        range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
-          pcl::FieldComparison<PointOutT> ("normal_x", pcl::ComparisonOps::GT, 0.0)));
-        range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
-          pcl::FieldComparison<PointOutT> ("normal_y", pcl::ComparisonOps::GT, 0.0)));
-        range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
-          pcl::FieldComparison<PointOutT> ("normal_z", pcl::ComparisonOps::GT, 0.0)));
+	// build the condition
+	pcl::ConditionOr<PointOutT>::Ptr range_cond (new
+	  pcl::ConditionOr<PointOutT> ());
+	range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
+			  pcl::FieldComparison<PointOutT> ("curvature", pcl::ComparisonOps::GT, 0.0)));
+	/*
+	range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
+	  pcl::FieldComparison<PointOutT> ("normal_x", pcl::ComparisonOps::GT, 0.0)));
+	range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
+	  pcl::FieldComparison<PointOutT> ("normal_y", pcl::ComparisonOps::GT, 0.0)));
+	range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
+	  pcl::FieldComparison<PointOutT> ("normal_z", pcl::ComparisonOps::GT, 0.0)));
 
-        range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
-          pcl::FieldComparison<PointOutT> ("normal_x", pcl::ComparisonOps::LT, 0.0)));
-        range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
-          pcl::FieldComparison<PointOutT> ("normal_y", pcl::ComparisonOps::LT, 0.0)));
-        range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
-          pcl::FieldComparison<PointOutT> ("normal_z", pcl::ComparisonOps::LT, 0.0)));
-         */
-        // build the filter
-        pcl::ConditionalRemoval<PointOutT> condrem (range_cond);
-        condrem.setInputCloud (doncloud);
-
-
-        pcl::PointCloud<PointOutT>::Ptr doncloud_filtered (new pcl::PointCloud<PointOutT>);
-
-        // apply filter
-        condrem.filter (*doncloud_filtered);
+	range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
+	  pcl::FieldComparison<PointOutT> ("normal_x", pcl::ComparisonOps::LT, 0.0)));
+	range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
+	  pcl::FieldComparison<PointOutT> ("normal_y", pcl::ComparisonOps::LT, 0.0)));
+	range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
+	  pcl::FieldComparison<PointOutT> ("normal_z", pcl::ComparisonOps::LT, 0.0)));
+	 */
+	// build the filter
+	pcl::ConditionalRemoval<PointOutT> condrem (range_cond);
+	condrem.setInputCloud (doncloud);
 
 
-        sensor_msgs::PointCloud2 outblob;
-        pcl::toROSMsg(*doncloud_filtered, outblob);
+	pcl::PointCloud<PointOutT>::Ptr doncloud_filtered (new pcl::PointCloud<PointOutT>);
 
-        // Save filtered output
-        pcl::io::savePCDFile (outfile.c_str (), outblob);
+	// apply filter
+	condrem.filter (*doncloud_filtered);
 
-        // visualize normals
-        //pcl::visualization::PCLVisualizer viewer("PCL Viewer");
-        //viewer.setBackgroundColor (0.0, 0.0, 0.5);
-        //viewer.addPointCloudNormals<pcl::PointXYZ,pcl::Normal>(cloud, normals);
+	// Save filtered output
+	sensor_msgs::PointCloud2 outblob;
+	pcl::toROSMsg(*doncloud_filtered, outblob);
+	pcl::io::savePCDFile (outfile.c_str (), outblob);
 
-        //while (!viewer.wasStopped ())
-        //{
-        //  viewer.spinOnce ();
-        //}
-
-        return (0);
+	return (0);
 }
