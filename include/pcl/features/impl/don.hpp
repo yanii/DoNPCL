@@ -46,28 +46,58 @@ pcl::DifferenceOfNormalsEstimation<PointInT, PointNT, PointOutT>::initCompute ()
 {
   if (!Feature<PointInT, PointOutT>::initCompute ())
   {
-    PCL_ERROR ("[pcl::%s::initCompute] Init failed.\n", getClassName ().c_str ());
+    PCL_ERROR ("[pcl::%s::initCompute] Init failed.\n", getClassName().c_str ());
     return (false);
   }
 
   // Check if input normals are set
-  if (!input_normals_)
+  if (!input_normals_small_)
   {
-    PCL_ERROR ("[pcl::%s::initCompute] No input dataset containing normals was given!\n", getClassName ().c_str ());
-    Feature<PointInT, PointOutT>::deinitCompute ();
+    PCL_ERROR ("[pcl::%s::initCompute] No input dataset containing small support radius normals was given!\n", getClassName().c_str ());
+    Feature<PointInT, PointOutT>::deinitCompute();
+    return (false);
+  }
+
+  if (!input_normals_large_)
+  {
+    PCL_ERROR ("[pcl::%s::initCompute] No input dataset containing large support radius normals was given!\n", getClassName().c_str ());
+    Feature<PointInT, PointOutT>::deinitCompute();
     return (false);
   }
 
   // Check if the size of normals is the same as the size of the surface
-  if (input_normals_->points.size () != input_->points.size ())
+  if (input_normals_small_->points.size () != input_->points.size ())
   {
-    PCL_ERROR ("[pcl::%s::initCompute] ", getClassName ().c_str ());
+    PCL_ERROR ("[pcl::%s::initCompute] ", getClassName().c_str ());
     PCL_ERROR ("The number of points in the input dataset differs from ");
-    PCL_ERROR ("the number of points in the dataset containing the normals!\n");
+    PCL_ERROR ("the number of points in the dataset containing the small support radius normals!\n");
+    Feature<PointInT, PointOutT>::deinitCompute ();
+    return (false);
+  }
+
+  if (input_normals_large_->points.size () != input_->points.size ())
+  {
+    PCL_ERROR ("[pcl::%s::initCompute] ", getClassName().c_str ());
+    PCL_ERROR ("The number of points in the input dataset differs from ");
+    PCL_ERROR ("the number of points in the dataset containing the large support radius normals!\n");
     Feature<PointInT, PointOutT>::deinitCompute ();
     return (false);
   }
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+template <typename PointInT, typename PointNT, typename PointOutT> void
+pcl::DifferenceOfNormalsEstimation<PointInT, PointNT, PointOutT>::computeFeature (PointCloudOut &output)
+{
+  //perform DoN subtraction and return results
+  for (size_t point_id = 0; point_id < input_->points.size (); ++point_id)
+  {
+    Eigen::Vector3f normal_large = input_normals_large_->at(point_id).getNormalVector3fMap ();
+    Eigen::Vector3f normal_small = input_normals_small_->at(point_id).getNormalVector3fMap ();
+    output.at(point_id).getNormalVector3fMap () = (normal_large - normal_small);
+  }
+}
+
 
 #define PCL_INSTANTIATE_DifferenceOfNormalsEstimation(T,NT,OutT) template class PCL_EXPORTS pcl::DifferenceOfNormalsEstimation<T,NT,OutT>;
 

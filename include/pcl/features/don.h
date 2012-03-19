@@ -67,10 +67,13 @@ namespace pcl
   template <typename PointInT, typename PointNT, typename PointOutT>
     class DifferenceOfNormalsEstimation : public Feature<PointInT, PointOutT>
     {
+      using Feature<PointInT, PointOutT>::getClassName;
+      using Feature<PointInT, PointOutT>::feature_name_;
       using PCLBase<PointInT>::input_;
       typedef typename pcl::PointCloud<PointNT> PointCloudN;
       typedef typename PointCloudN::Ptr PointCloudNPtr;
       typedef typename PointCloudN::ConstPtr PointCloudNConstPtr;
+      typedef typename Feature<PointInT, PointOutT>::PointCloudOut PointCloudOut;
     public:
       /**
        * Creates a new Difference of Normals filter.
@@ -78,6 +81,11 @@ namespace pcl
       DifferenceOfNormalsEstimation()
       {
         feature_name_ = "DifferenceOfNormalsEstimation";
+      }
+
+      virtual ~DifferenceOfNormalsEstimation()
+      {
+        //
       }
 
       /**
@@ -113,8 +121,12 @@ namespace pcl
        */
       virtual bool
       initCompute ();
-
     private:
+      /** \brief Make the computeFeature (&Eigen::MatrixXf); inaccessible from outside the class
+        * \param[out] output the output point cloud
+        */
+      void
+      computeFeatureEigen (pcl::PointCloud<Eigen::MatrixXf> &) {};
       ///The smallest radius (scale) used in the DoN filter.
       PointCloudNConstPtr input_normals_small_;
       ///The largest radius (scale) used in the DoN filter.

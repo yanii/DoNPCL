@@ -13,6 +13,7 @@
 #include <pcl/common/point_operators.h>
 #include <pcl/common/io.h>
 #include <pcl/search/kdtree.h>
+#include <pcl/visualization/pcl_visualizer.h>
 
 namespace po = boost::program_options;
 
@@ -41,8 +42,8 @@ int main(int argc, char *argv[])
 		//Options
 		("smallscale", po::value<float>(&scale1)->required(), "the small scale to use in the DoN filter")
 		("largescale", po::value<float>(&scale2)->required(), "the large scale to use in the DoN filter")
-		("infile", po::value<string>(&infile)->required(), "the file to read the classifier state from")
-		("outfile", po::value<string>(&outfile)->required(), "the file to read the classifier state from")
+		("infile", po::value<string>(&infile)->required(), "the file to read the point cloud from")
+		("outfile", po::value<string>(&outfile)->required(), "the file to write the filtered coloured point cloud to")
 		;
 	// Parse the command line
 	po::variables_map vm;
@@ -103,17 +104,17 @@ int main(int argc, char *argv[])
         cout << "done." << endl;
 
         // Save filtered output
-        pcl::io::savePCDFile (outfile.c_str (), outcloud);
+        //pcl::io::savePCDFile (outfile.c_str (), outcloud);
 
         // visualize normals
-        //pcl::visualization::PCLVisualizer viewer("PCL Viewer");
-        //viewer.setBackgroundColor (0.0, 0.0, 0.5);
-        //viewer.addPointCloudNormals<pcl::PointXYZ,pcl::Normal>(cloud, normals);
+        pcl::visualization::PCLVisualizer viewer("PCL Viewer");
+        viewer.setBackgroundColor (0.0, 0.0, 0.5);
+        //viewer.addPointCloudNormals<pcl::PointXYZ,pcl::Normal>(cloud, outcloud);
 
-        //while (!viewer.wasStopped ())
-        //{
-        //  viewer.spinOnce ();
-        //}
+        while (!viewer.wasStopped ())
+        {
+          viewer.spinOnce ();
+        }
 
         return (0);
 }

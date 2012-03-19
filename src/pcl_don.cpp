@@ -13,10 +13,13 @@
 #include <pcl/common/point_operators.h>
 #include <pcl/common/io.h>
 #include <pcl/search/kdtree.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/features/normal_3d_omp.h>
 
 namespace po = boost::program_options;
 
 typedef pcl::PointXYZRGB PointT;
+typedef pcl::PointNormal PointNT;
 
 int main(int argc, char *argv[])
 {
@@ -41,8 +44,8 @@ int main(int argc, char *argv[])
 		//Options
 		("smallscale", po::value<float>(&scale1)->required(), "the small scale to use in the DoN filter")
 		("largescale", po::value<float>(&scale2)->required(), "the large scale to use in the DoN filter")
-		("infile", po::value<string>(&infile)->required(), "the file to read the classifier state from")
-		("outfile", po::value<string>(&outfile)->required(), "the file to read the classifier state from")
+		("infile", po::value<string>(&infile)->required(), "the file to read a point cloud from")
+		("outfile", po::value<string>(&outfile)->required(), "the file to write the DoN point cloud & normals to")
 		;
 	// Parse the command line
 	po::variables_map vm;
@@ -66,43 +69,55 @@ int main(int argc, char *argv[])
 	sensor_msgs::PointCloud2 blob;
 	pcl::io::loadPCDFile (infile.c_str(), blob);
 
-	//If it is does not have an 'rgb' field, convert
-	bool isRGB = false;
-	for(vector<sensor_msgs::PointField>::iterator i = blob.fields.begin(); i != blob.fields.end(); i++){
-	  if(i->name == "rgb"){
-	    isRGB = true;
-	    break;
-	  }
-	}
 	pcl::PointCloud<PointT>::Ptr cloud (new pcl::PointCloud<PointT>);
-	if(!isRGB){
-	  cout << "Converting point cloud...";
-	  PointCloud<pcl::PointXYZ>::Ptr xyzcloud (new pcl::PointCloud<pcl::PointXYZ>);
-          pcl::fromROSMsg (blob, *xyzcloud);
-	  copyPointCloud<pcl::PointXYZ, PointT>(*xyzcloud, *cloud);
-	  cout << "done." << endl;
-	}else{
-          pcl::fromROSMsg (blob, *cloud);
-	}
-	int pnumber = (int)cloud->size ();
+        cout << "Converting point cloud...";
+        PointCloud<pcl::PointXYZ>::Ptr xyzcloud (new pcl::PointCloud<pcl::PointXYZ>);
+        pcl::fromROSMsg (blob, *xyzcloud);
+        copyPointCloud<pcl::PointXYZ, PointT>(*xyzcloud, *cloud);
+        cout << "done." << endl;
 
-	// Output Cloud = Input Cloud
-	pcl::PointCloud<PointT> outcloud = *cloud;
+	int pnumber = (int)cloud->size ();
 
         // Set up KDTree
 	pcl::search::KdTree<PointT>::Ptr tree (new pcl::search::KdTree<PointT>());
 
-        pcl::DifferenceOfNormalsEstimation<PointT> don;
-        don.setInputCloud (cloud);
+        // Compute normals using both small and large scales at each point
+        // TODO: Use IntegralImageNormalEstimation for organized data
+        pcl::NormalEstimationOMP<PointT, PointNT> ne;
+        ne.setInputCloud (cloud);
+        ne.setSearchMethod (tree);
 
-        don.setInputCloudSmall (cloud);
+        //the normals calculated with the small scale
+        pcl::PointCloud<PointNT>::Ptr normals_small_scale (new pcl::PointCloud<PointNT>);
+        ne.setRadiusSearch (scale1);
+        ne.compute (*normals_small_scale);
+
+        //the normals calculated with the large scale
+        pcl::PointCloud<PointNT>::Ptr normals_large_scale (new pcl::PointCloud<PointNT>);
+        ne.setRadiusSearch (scale2);
+        ne.compute (*normals_large_scale);
+
+
+        // Create output cloud for DoN results
+        PointCloud<PointNT>::Ptr doncloud (new pcl::PointCloud<PointNT>);
+        pcl::fromROSMsg (blob, *xyzcloud);
+        copyPointCloud<pcl::PointXYZ, PointNT>(*xyzcloud, *doncloud);
+
+        // Create DoN operator
+        pcl::DifferenceOfNormalsEstimation<PointT, PointNT, PointNT> don;
+        don.setInputCloud (cloud);
+        don.setNormalScaleLarge(normals_large_scale);
+        don.setNormalScaleSmall(normals_small_scale);
 
         if(don.initCompute ()){
-          don.computeFeature();
+          don.computeFeature(*doncloud);
         }
 
+        sensor_msgs::PointCloud2 outblob;
+        pcl::toROSMsg(*doncloud, outblob);
+
         // Save filtered output
-        pcl::io::savePCDFile (outfile.c_str (), outcloud);
+        pcl::io::savePCDFile (outfile.c_str (), outblob);
 
         // visualize normals
         //pcl::visualization::PCLVisualizer viewer("PCL Viewer");

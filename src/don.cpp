@@ -42,8 +42,7 @@
 #include <pcl/features/impl/don.hpp>
 
 #ifdef PCL_ONLY_CORE_POINT_TYPES
-  PCL_INSTANTIATE_PRODUCT(DifferenceOfNormalsEstimation, ((pcl::PointXYZ)(pcl::PointXYZI)(pcl::PointXYZRGBA)(pcl::PointNormal))((pcl::Normal)(pcl::PointNormal))((pcl::Histogram<153>)))
+  PCL_INSTANTIATE_PRODUCT(DifferenceOfNormalsEstimation, ((pcl::PointXYZ)(pcl::PointXYZI)(pcl::PointXYZRGB)(pcl::PointXYZRGBA)(pcl::PointNormal))((pcl::Normal)(pcl::PointNormal)(pcl::PointXYZNormal)(pcl::PointRGBNormal))((pcl::Normal)(pcl::PointNormal)(pcl::PointXYZNormal)(pcl::PointRGBNormal)))
 #else
-  PCL_INSTANTIATE_PRODUCT(DifferenceOfNormalsEstimation, (PCL_XYZ_POINT_TYPES)(PCL_NORMAL_POINT_TYPES)((pcl::Histogram<153>)))
-  PCL_INSTANTIATE_PRODUCT(DifferenceOfNormalsEstimation, (PCL_XYZ_POINT_TYPES)(PCL_NORMAL_POINT_TYPES)((Eigen::MatrixXf)))
+  PCL_INSTANTIATE_PRODUCT(DifferenceOfNormalsEstimation, (PCL_XYZ_POINT_TYPES)(PCL_NORMAL_POINT_TYPES)(PCL_NORMAL_POINT_TYPES))
 #endif
