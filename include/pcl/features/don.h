@@ -105,7 +105,7 @@ namespace pcl
       inline void
       setNormalScaleLarge (const PointCloudNConstPtr &normals)
       {
-        input_normals_small_ = normals;
+        input_normals_large_ = normals;
       }
 
       /**
@@ -127,6 +127,11 @@ namespace pcl
         */
       void
       computeFeatureEigen (pcl::PointCloud<Eigen::MatrixXf> &) {};
+      /** \brief Make the compute (&PointCloudOut); inaccessible from outside the class
+        * \param[out] output the output point cloud
+        */
+      void
+      compute (PointCloudOut &output) {}
       ///The smallest radius (scale) used in the DoN filter.
       PointCloudNConstPtr input_normals_small_;
       ///The largest radius (scale) used in the DoN filter.

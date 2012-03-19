@@ -88,30 +88,35 @@ int main(int argc, char *argv[])
         ne.setSearchMethod (tree);
 
         //the normals calculated with the small scale
+        cout << "Calculating normals for scale..." << scale1 << endl;
         pcl::PointCloud<PointNT>::Ptr normals_small_scale (new pcl::PointCloud<PointNT>);
         ne.setRadiusSearch (scale1);
         ne.compute (*normals_small_scale);
 
+        cout << "Calculating normals for scale..." << scale2 << endl;
         //the normals calculated with the large scale
         pcl::PointCloud<PointNT>::Ptr normals_large_scale (new pcl::PointCloud<PointNT>);
         ne.setRadiusSearch (scale2);
         ne.compute (*normals_large_scale);
-
 
         // Create output cloud for DoN results
         PointCloud<PointNT>::Ptr doncloud (new pcl::PointCloud<PointNT>);
         pcl::fromROSMsg (blob, *xyzcloud);
         copyPointCloud<pcl::PointXYZ, PointNT>(*xyzcloud, *doncloud);
 
+        cout << "Calculating DoN... " << endl;
         // Create DoN operator
         pcl::DifferenceOfNormalsEstimation<PointT, PointNT, PointNT> don;
         don.setInputCloud (cloud);
         don.setNormalScaleLarge(normals_large_scale);
         don.setNormalScaleSmall(normals_small_scale);
 
-        if(don.initCompute ()){
-          don.computeFeature(*doncloud);
+        if(!don.initCompute ()){
+          std::cerr << "Error: Could not intialize DoN feature operator" << std::endl;
+          exit(EXIT_FAILURE);
         }
+
+        don.computeFeature(*doncloud);
 
         sensor_msgs::PointCloud2 outblob;
         pcl::toROSMsg(*doncloud, outblob);

@@ -44,12 +44,6 @@
 template <typename PointInT, typename PointNT, typename PointOutT> bool
 pcl::DifferenceOfNormalsEstimation<PointInT, PointNT, PointOutT>::initCompute ()
 {
-  if (!Feature<PointInT, PointOutT>::initCompute ())
-  {
-    PCL_ERROR ("[pcl::%s::initCompute] Init failed.\n", getClassName().c_str ());
-    return (false);
-  }
-
   // Check if input normals are set
   if (!input_normals_small_)
   {
@@ -83,6 +77,8 @@ pcl::DifferenceOfNormalsEstimation<PointInT, PointNT, PointOutT>::initCompute ()
     Feature<PointInT, PointOutT>::deinitCompute ();
     return (false);
   }
+
+  return (true);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -92,9 +88,8 @@ pcl::DifferenceOfNormalsEstimation<PointInT, PointNT, PointOutT>::computeFeature
   //perform DoN subtraction and return results
   for (size_t point_id = 0; point_id < input_->points.size (); ++point_id)
   {
-    Eigen::Vector3f normal_large = input_normals_large_->at(point_id).getNormalVector3fMap ();
-    Eigen::Vector3f normal_small = input_normals_small_->at(point_id).getNormalVector3fMap ();
-    output.at(point_id).getNormalVector3fMap () = (normal_large - normal_small);
+    output.at(point_id).getNormalVector3fMap () =  input_normals_large_->at(point_id).getNormalVector3fMap ();
+    output.at(point_id).getNormalVector3fMap () -= input_normals_small_->at(point_id).getNormalVector3fMap ();
   }
 }
 
