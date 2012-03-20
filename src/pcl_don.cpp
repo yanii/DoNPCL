@@ -13,6 +13,7 @@
 #include <pcl/common/point_operators.h>
 #include <pcl/common/io.h>
 #include <pcl/search/organized.h>
+#include <pcl/search/octree.h>
 #include <pcl/search/kdtree.h>
 #include <pcl/features/normal_3d_omp.h>
 #include <pcl/filters/conditional_removal.h>
@@ -89,7 +90,7 @@ int main(int argc, char *argv[])
 	}
 	else
 	{
-	  tree.reset (new pcl::search::KdTree<PointT> (false));
+	  tree.reset (new pcl::search::Octree<PointT> (0.5));
 	}
 	tree->setInputCloud (cloud);
 
