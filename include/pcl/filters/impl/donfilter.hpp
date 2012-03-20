@@ -74,7 +74,7 @@ template<typename PointT>
 
     // Compute normals using both small and large scales at each point
     // TODO: Use IntegralImageNormalEstimation for organized data
-    pcl::NormalEstimationOMP<PointT, pcl::Normal> ne;
+    pcl::NormalEstimation<PointT, pcl::Normal> ne;
     ne.setInputCloud (this->getInputCloud ());
     ne.setSearchMethod (tree_);
     ne.setViewPoint(0,0,std::numeric_limits<float>::max());
@@ -92,11 +92,11 @@ template<typename PointT>
     //perform subtraction
     for (size_t point_id = 0; point_id < input_->points.size (); ++point_id)
     {
-      Eigen::Vector3f don = normals_small_scale->at(point_id).getNormalVector3fMap ()
-          - normals_large_scale->at(point_id).getNormalVector3fMap ();
-      output.at(point_id).r = (don.x()/2.0f+0.5f)*255;
-      output.at(point_id).g = (don.y()/2.0f+0.5f)*255;
-      output.at(point_id).b = (don.z()/2.0f+0.5f)*255;
+      Eigen::Vector3f don = normals_small_scale->points[point_id].getNormalVector3fMap ()
+          - normals_large_scale->points[point_id].getNormalVector3fMap ();
+      output.points[point_id].r = (don.x()/2.0f+0.5f)*255;
+      output.points[point_id].g = (don.y()/2.0f+0.5f)*255;
+      output.points[point_id].b = (don.z()/2.0f+0.5f)*255;
     }
   }
 

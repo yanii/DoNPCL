@@ -88,14 +88,14 @@ pcl::DifferenceOfNormalsEstimation<PointInT, PointNT, PointOutT>::computeFeature
   //perform DoN subtraction and return results
   for (size_t point_id = 0; point_id < input_->points.size (); ++point_id)
   {
-    output.at(point_id).getNormalVector3fMap () =  input_normals_small_->at(point_id).getNormalVector3fMap ()
-    		- input_normals_large_->at(point_id).getNormalVector3fMap ();
-    if(!pcl_isfinite (output.at(point_id).normal_x) ||
-        !pcl_isfinite (output.at(point_id).normal_y) ||
-        !pcl_isfinite (output.at(point_id).normal_z)){
-      output.at(point_id).getNormalVector3fMap () = Eigen::Vector3f(0,0,0);
+    output.points[point_id].getNormalVector3fMap () =  input_normals_small_->points[point_id].getNormalVector3fMap ()
+    		- input_normals_large_->points[point_id].getNormalVector3fMap ();
+    if(!pcl_isfinite (output.points[point_id].normal_x) ||
+        !pcl_isfinite (output.points[point_id].normal_y) ||
+        !pcl_isfinite (output.points[point_id].normal_z)){
+      output.points[point_id].getNormalVector3fMap () = Eigen::Vector3f(0,0,0);
     }
-    output.at(point_id).curvature = output.at(point_id).getNormalVector3fMap ().norm();
+    output.points[point_id].curvature = output.points[point_id].getNormalVector3fMap ().norm();
   }
 }
 

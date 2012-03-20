@@ -95,7 +95,7 @@ int main(int argc, char *argv[])
 
 	// Compute normals using both small and large scales at each point
 	// TODO: Use IntegralImageNormalEstimation for organized data
-	pcl::NormalEstimationOMP<PointT, PointNT> ne;
+	pcl::NormalEstimation<PointT, PointNT> ne;
 	ne.setInputCloud (cloud);
 	ne.setSearchMethod (tree);
 	// NOTE: this is very important, so that we can ensure normals are all pointed in the same direction!
@@ -144,7 +144,7 @@ int main(int argc, char *argv[])
 	pcl::ConditionOr<PointOutT>::Ptr range_cond (new
 	  pcl::ConditionOr<PointOutT> ());
 	range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
-			  pcl::FieldComparison<PointOutT> ("curvature", pcl::ComparisonOps::GT, 0.0)));
+			  pcl::FieldComparison<PointOutT> ("curvature", pcl::ComparisonOps::GT, 0.5)));
 	/*
 	range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
 	  pcl::FieldComparison<PointOutT> ("normal_x", pcl::ComparisonOps::GT, 0.0)));
