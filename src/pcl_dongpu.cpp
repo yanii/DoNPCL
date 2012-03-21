@@ -94,8 +94,10 @@ int main(int argc, char *argv[])
 
 	SearchPtr tree;
 
-        pcl::gpu::Octree::PointCloud cloud_device;
-        cloud_device.upload(xyzcloud->points);
+
+	cout << "Uploading point cloud to GPU ..." << endl;
+	pcl::gpu::Octree::PointCloud cloud_device;
+	cloud_device.upload(xyzcloud->points);
 
 	// Compute normals using both small and large scales at each point
 	// TODO: Use IntegralImageNormalEstimation for organized data
@@ -114,10 +116,11 @@ int main(int argc, char *argv[])
 	}
 
 	//maximum answers for search radius
-        const int max_answers = 500*200;
-        //cloud_device.size()?
-        //buffer for results
-        pcl::gpu::Feature::Normals result_device(max_answers);
+	const int max_answers = 500;
+	//cloud_device.size()?
+	//buffer for results
+	cout << "Creating GPU NormalEstimation output dev..." << endl;
+	pcl::gpu::Feature::Normals result_device(max_answers);
 
 	//the normals calculated with the small scale
 	cout << "Calculating normals for scale..." << scale1 << endl;
@@ -126,6 +129,8 @@ int main(int argc, char *argv[])
 	ne.setRadiusSearch (scale1, max_answers);
 	ne.compute (result_device);
 
+	//the normals calculated with the small scale
+	cout << "Downloading results from GPU..." << scale1 << endl;
 	std::vector<PointXYZ> normals_small_scale_vec(result_device.size());
 	result_device.download(normals_small_scale_vec);
 
@@ -135,8 +140,9 @@ int main(int argc, char *argv[])
 	ne.setRadiusSearch (scale2, max_answers);
 	ne.compute (result_device);
 
+	cout << "Downloading results from GPU..." << scale1 << endl;
 	std::vector<PointXYZ> normals_large_scale_vec(result_device.size());
-        result_device.download(normals_large_scale_vec);
+	result_device.download(normals_large_scale_vec);
 
 	// Create output cloud for DoN results
 	PointCloud<PointOutT>::Ptr doncloud (new pcl::PointCloud<PointOutT>);

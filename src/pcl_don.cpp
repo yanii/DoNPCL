@@ -164,62 +164,62 @@ int main(int argc, char *argv[])
 
 	//Filter by magnitude
 	if(vm.count("magthreshold")){
-          cout << "Filtering out DoN mag <= "<< threshold <<  "..." << endl;
+	  cout << "Filtering out DoN mag <= "<< threshold <<  "..." << endl;
 
-          // build the condition
-          pcl::ConditionOr<PointOutT>::Ptr range_cond (new
-            pcl::ConditionOr<PointOutT> ());
-          range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
-                            pcl::FieldComparison<PointOutT> ("curvature", pcl::ComparisonOps::GT, 0.5)));
-          // build the filter
-          pcl::ConditionalRemoval<PointOutT> condrem (range_cond);
-          condrem.setInputCloud (doncloud);
+	  // build the condition
+	  pcl::ConditionOr<PointOutT>::Ptr range_cond (new
+		pcl::ConditionOr<PointOutT> ());
+	  range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
+		pcl::FieldComparison<PointOutT> ("curvature", pcl::ComparisonOps::GT, threshold)));
+	  // build the filter
+	  pcl::ConditionalRemoval<PointOutT> condrem (range_cond);
+	  condrem.setInputCloud (doncloud);
 
-          pcl::PointCloud<PointOutT>::Ptr doncloud_filtered (new pcl::PointCloud<PointOutT>);
+	  pcl::PointCloud<PointOutT>::Ptr doncloud_filtered (new pcl::PointCloud<PointOutT>);
 
-          // apply filter
-          condrem.filter (*doncloud_filtered);
+	  // apply filter
+	  condrem.filter (*doncloud_filtered);
 
-          doncloud = doncloud_filtered;
+	  doncloud = doncloud_filtered;
 	}
 
-        //Filter by magnitude
-        if(vm.count("segment")){
-          cout << "Clustering using EuclideanClusterExtraction with tolerance <= "<< segradius <<  "..." << endl;
+	//Filter by magnitude
+	if(vm.count("segment")){
+	  cout << "Clustering using EuclideanClusterExtraction with tolerance <= "<< segradius <<  "..." << endl;
 
-          pcl::search::KdTree<PointOutT>::Ptr segtree (new pcl::search::KdTree<PointOutT>);
-          segtree->setInputCloud (doncloud);
+	  pcl::search::KdTree<PointOutT>::Ptr segtree (new pcl::search::KdTree<PointOutT>);
+	  segtree->setInputCloud (doncloud);
 
-          std::vector<pcl::PointIndices> cluster_indices;
-          pcl::EuclideanClusterExtraction<PointOutT> ec;
+	  std::vector<pcl::PointIndices> cluster_indices;
+	  pcl::EuclideanClusterExtraction<PointOutT> ec;
 
-          ec.setClusterTolerance (segradius);
-          ec.setMinClusterSize (100);
-          ec.setMaxClusterSize (100000);
-          ec.setSearchMethod (segtree);
-          ec.setInputCloud (doncloud);
-          ec.extract (cluster_indices);
+	  ec.setClusterTolerance (segradius);
+	  ec.setMinClusterSize (100);
+	  ec.setMaxClusterSize (100000);
+	  ec.setSearchMethod (segtree);
+	  ec.setInputCloud (doncloud);
+	  ec.extract (cluster_indices);
 
-          pcl::PCDWriter writer;
+	  pcl::PCDWriter writer;
 
-          int j = 0;
-          for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
-          {
-            pcl::PointCloud<PointOutT>::Ptr cloud_cluster (new pcl::PointCloud<PointOutT>);
-            for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); pit++){
-              cloud_cluster->points.push_back (doncloud->points[*pit]); //*
-            }
-            cloud_cluster->width = cloud_cluster->points.size ();
-            cloud_cluster->height = 1;
-            cloud_cluster->is_dense = true;
+	  int j = 0;
+	  for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
+	  {
+		pcl::PointCloud<PointOutT>::Ptr cloud_cluster (new pcl::PointCloud<PointOutT>);
+		for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); pit++){
+		  cloud_cluster->points.push_back (doncloud->points[*pit]); //*
+		}
+		cloud_cluster->width = cloud_cluster->points.size ();
+		cloud_cluster->height = 1;
+		cloud_cluster->is_dense = true;
 
-            std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size () << " data points." << std::endl;
-            std::stringstream ss;
-            ss << outfile.substr(0,outfile.length()-4) << "_cluster_" << j << ".pcd";
-            writer.write<PointOutT> (ss.str (), *cloud_cluster, false); //*
-            j++;
-          }
-        }
+		std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size () << " data points." << std::endl;
+		std::stringstream ss;
+		ss << outfile.substr(0,outfile.length()-4) << "_cluster_" << j << ".pcd";
+		writer.write<PointOutT> (ss.str (), *cloud_cluster, false); //*
+		j++;
+	  }
+	}
 
 	// Save filtered output
 	sensor_msgs::PointCloud2 outblob;

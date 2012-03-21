@@ -7,7 +7,18 @@ SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 SET(LIBRARY_OUTPUT_PATH  ${PROJECT_BINARY_DIR}/lib)
 
 #Note: Eclipse automatically picks up include paths with this on!
-#SET(CMAKE_VERBOSE_MAKEFILE ON)
+SET(CMAKE_VERBOSE_MAKEFILE ON)
+
+##### Compiler Flags #####
+IF(CMAKE_COMPILER_IS_GNUCXX)
+	IF(DEBUG)
+		SET(CMAKE_CXX_FLAGS "-g -O0 -fPIC -Wall ${OpenMP_CXX_FLAGS}  -DJSON_SAFE -DJSON_DEBUG" )
+		SET(CMAKE_C_FLAGS "-g -O0 -fPIC -Wall ${OpenMP_C_FLAGS}  -DJSON_SAFE -DJSON_DEBUG" )
+	ELSE(DEBUG)
+		SET(CMAKE_CXX_FLAGS "-g -O3 -fPIC -Wall -fexpensive-optimizations ${OpenMP_CXX_FLAGS}" )
+		SET(CMAKE_C_FLAGS "-g -O3 -fPIC -Wall -fexpensive-optimizations ${OpenMP_C_FLAGS}" )
+	ENDIF(DEBUG)
+ENDIF(CMAKE_COMPILER_IS_GNUCXX)
 
 ##### Package Dependencies #####
 include(UseDoxygen OPTIONAL)
