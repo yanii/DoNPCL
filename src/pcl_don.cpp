@@ -17,6 +17,8 @@
 #include <pcl/search/kdtree.h>
 #include <pcl/features/normal_3d_omp.h>
 #include <pcl/filters/conditional_removal.h>
+#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/segmentation/extract_clusters.h>
 
 namespace po = boost::program_options;
 
@@ -39,6 +41,12 @@ int main(int argc, char *argv[])
 	///The file to output to.
 	string outfile;
 
+	///The minimum DoN magnitude to threshold by
+	double threshold;
+
+        ///The euclidian cluster distance to use
+        double segradius;
+
 	// Declare the supported options.
 	po::options_description desc("Program options");
 	desc.add_options()
@@ -50,6 +58,8 @@ int main(int argc, char *argv[])
 		("largescale", po::value<double>(&scale2)->required(), "the large scale to use in the DoN filter")
 		("infile", po::value<string>(&infile)->required(), "the file to read a point cloud from")
 		("outfile", po::value<string>(&outfile)->required(), "the file to write the DoN point cloud & normals to")
+		("magthreshold", po::value<double>(&threshold)->default_value(0.25), "the minimum DoN magnitude to filter by")
+		("segment", po::value<double>(&segradius)->default_value(0), "the file to write the DoN point cloud & normals to")
 		;
 	// Parse the command line
 	po::variables_map vm;
@@ -151,25 +161,68 @@ int main(int argc, char *argv[])
 	//Compute DoN
 	don.computeFeature(*doncloud);
 
-	cout << "Filtering out zero DoN" << endl;
+	//Filter by magnitude
+	if(vm.count("magthreshold")){
+          cout << "Filtering out DoN mag <= "<< threshold <<  "..." << endl;
 
-	// build the condition
-	pcl::ConditionOr<PointOutT>::Ptr range_cond (new
-	  pcl::ConditionOr<PointOutT> ());
-	range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
-			  pcl::FieldComparison<PointOutT> ("curvature", pcl::ComparisonOps::GT, 0.5)));
-	// build the filter
-	pcl::ConditionalRemoval<PointOutT> condrem (range_cond);
-	condrem.setInputCloud (doncloud);
+          // build the condition
+          pcl::ConditionOr<PointOutT>::Ptr range_cond (new
+            pcl::ConditionOr<PointOutT> ());
+          range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
+                            pcl::FieldComparison<PointOutT> ("curvature", pcl::ComparisonOps::GT, 0.5)));
+          // build the filter
+          pcl::ConditionalRemoval<PointOutT> condrem (range_cond);
+          condrem.setInputCloud (doncloud);
 
-	pcl::PointCloud<PointOutT>::Ptr doncloud_filtered (new pcl::PointCloud<PointOutT>);
+          pcl::PointCloud<PointOutT>::Ptr doncloud_filtered (new pcl::PointCloud<PointOutT>);
 
-	// apply filter
-	condrem.filter (*doncloud_filtered);
+          // apply filter
+          condrem.filter (*doncloud_filtered);
+
+          doncloud = doncloud_filtered;
+	}
+
+        //Filter by magnitude
+        if(vm.count("segment")){
+          cout << "Clustering using EuclideanClusterExtraction with tolerance <= "<< segradius <<  "..." << endl;
+
+          pcl::search::KdTree<PointOutT>::Ptr segtree (new pcl::search::KdTree<PointOutT>);
+          segtree->setInputCloud (doncloud);
+
+          std::vector<pcl::PointIndices> cluster_indices;
+          pcl::EuclideanClusterExtraction<PointOutT> ec;
+
+          ec.setClusterTolerance (segradius);
+          ec.setMinClusterSize (100);
+          ec.setMaxClusterSize (100000);
+          ec.setSearchMethod (segtree);
+          ec.setInputCloud (doncloud);
+          ec.extract (cluster_indices);
+
+          pcl::PCDWriter writer;
+
+          int j = 0;
+          for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
+          {
+            pcl::PointCloud<PointOutT>::Ptr cloud_cluster (new pcl::PointCloud<PointOutT>);
+            for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); pit++){
+              cloud_cluster->points.push_back (doncloud->points[*pit]); //*
+            }
+            cloud_cluster->width = cloud_cluster->points.size ();
+            cloud_cluster->height = 1;
+            cloud_cluster->is_dense = true;
+
+            std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size () << " data points." << std::endl;
+            std::stringstream ss;
+            ss << "cloud_cluster_" << j << ".pcd";
+            writer.write<PointOutT> (ss.str (), *cloud_cluster, false); //*
+            j++;
+          }
+        }
 
 	// Save filtered output
 	sensor_msgs::PointCloud2 outblob;
-	pcl::toROSMsg(*doncloud_filtered, outblob);
+	pcl::toROSMsg(*doncloud, outblob);
 	pcl::io::savePCDFile (outfile.c_str (), outblob);
 
 	return (0);
