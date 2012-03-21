@@ -12,13 +12,13 @@
 
 #include <pcl/common/point_operators.h>
 #include <pcl/common/io.h>
-#include <pcl/search/organized.h>
-#include <pcl/search/octree.h>
-#include <pcl/search/kdtree.h>
-#include <pcl/features/normal_3d_omp.h>
+
 #include <pcl/filters/conditional_removal.h>
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/segmentation/extract_clusters.h>
+
+#include <pcl/gpu/features/features.hpp>
+#include <pcl/gpu/octree/octree.hpp>
 
 namespace po = boost::program_options;
 
@@ -94,30 +94,13 @@ int main(int argc, char *argv[])
 
 	SearchPtr tree;
 
-	if (cloud->isOrganized ())
-	{
-	  tree.reset (new pcl::search::OrganizedNeighbor<PointT> ());
-	}
-	else
-	{
-	  /**
-	   * NOTE: Some PCL versions contain a KDTree with a critical bug in
-	   * which setSearchRadius is ineffective (always uses K neighbours).
-	   *
-	   * Since DoN *requires* a fixed search radius, if you are getting
-	   * strange results in unorganized data, compare them with that
-	   * while using the Octree search method.
-	   */
-	  //tree.reset (new pcl::search::Octree<PointT> (0.5));
-          tree.reset (new pcl::search::KdTree<PointT> (false));
-	}
-	tree->setInputCloud (cloud);
+        pcl::gpu::Octree::PointCloud cloud_device;
+        cloud_device.upload(xyzcloud->points);
 
 	// Compute normals using both small and large scales at each point
 	// TODO: Use IntegralImageNormalEstimation for organized data
-	pcl::NormalEstimationOMP<PointT, PointNT> ne;
-	ne.setInputCloud (cloud);
-	ne.setSearchMethod (tree);
+	pcl::gpu::NormalEstimation ne;
+	ne.setInputCloud (cloud_device);
 
 	/**
 	 * NOTE: setting viewpoint is very important, so that we can ensure
@@ -130,17 +113,30 @@ int main(int argc, char *argv[])
 	  exit(EXIT_FAILURE);
 	}
 
+	//maximum answers for search radius
+        const int max_answers = 500*200;
+        //cloud_device.size()?
+        //buffer for results
+        pcl::gpu::Feature::Normals result_device(max_answers);
+
 	//the normals calculated with the small scale
 	cout << "Calculating normals for scale..." << scale1 << endl;
-	pcl::PointCloud<PointNT>::Ptr normals_small_scale (new pcl::PointCloud<PointNT>);
-	ne.setRadiusSearch (scale1);
-	ne.compute (*normals_small_scale);
+
+	pcl::PointCloud<PointOutT>::Ptr normals_small_scale (new pcl::PointCloud<PointOutT>);
+	ne.setRadiusSearch (scale1, max_answers);
+	ne.compute (result_device);
+
+	std::vector<PointXYZ> normals_small_scale_vec(result_device.size());
+	result_device.download(normals_small_scale_vec);
 
 	cout << "Calculating normals for scale..." << scale2 << endl;
 	//the normals calculated with the large scale
-	pcl::PointCloud<PointNT>::Ptr normals_large_scale (new pcl::PointCloud<PointNT>);
-	ne.setRadiusSearch (scale2);
-	ne.compute (*normals_large_scale);
+	pcl::PointCloud<PointOutT>::Ptr normals_large_scale (new pcl::PointCloud<PointOutT>);
+	ne.setRadiusSearch (scale2, max_answers);
+	ne.compute (result_device);
+
+	std::vector<PointXYZ> normals_large_scale_vec(result_device.size());
+        result_device.download(normals_large_scale_vec);
 
 	// Create output cloud for DoN results
 	PointCloud<PointOutT>::Ptr doncloud (new pcl::PointCloud<PointOutT>);

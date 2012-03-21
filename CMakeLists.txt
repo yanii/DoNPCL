@@ -7,7 +7,7 @@ SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 SET(LIBRARY_OUTPUT_PATH  ${PROJECT_BINARY_DIR}/lib)
 
 #Note: Eclipse automatically picks up include paths with this on!
-SET(CMAKE_VERBOSE_MAKEFILE ON)
+#SET(CMAKE_VERBOSE_MAKEFILE ON)
 
 ##### Package Dependencies #####
 include(UseDoxygen OPTIONAL)
