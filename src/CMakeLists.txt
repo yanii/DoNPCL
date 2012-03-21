@@ -6,6 +6,3 @@ target_link_libraries(pcl_don don ${Boost_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(pcl_dongpu pcl_dongpu.cpp pcl_don.h)
 target_link_libraries(pcl_dongpu don ${Boost_LIBRARIES} ${PCL_LIBRARIES})
-
-add_executable(pcl_realtimedon pcl_realtimedon.cpp)
-target_link_libraries(pcl_realtimedon don ${Boost_LIBRARIES} ${PCL_LIBRARIES})

@@ -23,7 +23,7 @@
 namespace po = boost::program_options;
 
 typedef pcl::PointXYZRGB PointT;
-typedef pcl::PointNormal PointNT;
+typedef pcl::Normal PointNT;
 typedef pcl::PointNormal PointOutT;
 typedef typename pcl::search::Search<PointT>::Ptr SearchPtr;
 
@@ -75,10 +75,6 @@ int main(int argc, char *argv[])
 	// Process options.
 	po::notify(vm);
 
-	//Verbose mode
-	bool verbose = vm.count("verbose");
-
-
 	// Load cloud in blob format
 	sensor_msgs::PointCloud2 blob;
 	pcl::io::loadPCDFile (infile.c_str(), blob);
@@ -89,11 +85,6 @@ int main(int argc, char *argv[])
         pcl::fromROSMsg (blob, *xyzcloud);
         copyPointCloud<pcl::PointXYZ, PointT>(*xyzcloud, *cloud);
         cout << "done." << endl;
-
-	int pnumber = (int)cloud->size ();
-
-	SearchPtr tree;
-
 
 	cout << "Uploading point cloud to GPU ..." << endl;
 	pcl::gpu::Octree::PointCloud cloud_device;
@@ -124,8 +115,6 @@ int main(int argc, char *argv[])
 
 	//the normals calculated with the small scale
 	cout << "Calculating normals for scale..." << scale1 << endl;
-
-	pcl::PointCloud<PointOutT>::Ptr normals_small_scale (new pcl::PointCloud<PointOutT>);
 	ne.setRadiusSearch (scale1, max_answers);
 	ne.compute (result_device);
 
@@ -134,15 +123,24 @@ int main(int argc, char *argv[])
 	std::vector<PointXYZ> normals_small_scale_vec(result_device.size());
 	result_device.download(normals_small_scale_vec);
 
+        pcl::PointCloud<PointNT>::Ptr normals_small_scale (new pcl::PointCloud<PointNT>);
+        for(std::vector<PointXYZ>::iterator resultpt = normals_small_scale_vec.begin(); resultpt != normals_small_scale_vec.end(); resultpt++){
+          normals_small_scale->push_back(Normal(resultpt->x, resultpt->y, resultpt->z));
+        }
+
 	cout << "Calculating normals for scale..." << scale2 << endl;
 	//the normals calculated with the large scale
-	pcl::PointCloud<PointOutT>::Ptr normals_large_scale (new pcl::PointCloud<PointOutT>);
 	ne.setRadiusSearch (scale2, max_answers);
 	ne.compute (result_device);
 
 	cout << "Downloading results from GPU..." << scale1 << endl;
 	std::vector<PointXYZ> normals_large_scale_vec(result_device.size());
 	result_device.download(normals_large_scale_vec);
+
+        pcl::PointCloud<PointNT>::Ptr normals_large_scale (new pcl::PointCloud<PointNT>);
+        for(std::vector<PointXYZ>::iterator resultpt = normals_large_scale_vec.begin(); resultpt != normals_large_scale_vec.end(); resultpt++){
+          normals_large_scale->push_back(Normal(resultpt->x, resultpt->y, resultpt->z));
+        }
 
 	// Create output cloud for DoN results
 	PointCloud<PointOutT>::Ptr doncloud (new pcl::PointCloud<PointOutT>);
@@ -172,7 +170,7 @@ int main(int argc, char *argv[])
           pcl::ConditionOr<PointOutT>::Ptr range_cond (new
             pcl::ConditionOr<PointOutT> ());
           range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
-                            pcl::FieldComparison<PointOutT> ("curvature", pcl::ComparisonOps::GT, 0.5)));
+                            pcl::FieldComparison<PointOutT> ("curvature", pcl::ComparisonOps::GT, threshold)));
           // build the filter
           pcl::ConditionalRemoval<PointOutT> condrem (range_cond);
           condrem.setInputCloud (doncloud);

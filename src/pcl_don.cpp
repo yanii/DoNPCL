@@ -114,7 +114,6 @@ int main(int argc, char *argv[])
 	tree->setInputCloud (cloud);
 
 	// Compute normals using both small and large scales at each point
-	// TODO: Use IntegralImageNormalEstimation for organized data
 	pcl::NormalEstimationOMP<PointT, PointNT> ne;
 	ne.setInputCloud (cloud);
 	ne.setSearchMethod (tree);
