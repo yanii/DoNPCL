@@ -90,16 +90,28 @@ int main(int argc, char *argv[])
 	}
 	else
 	{
+	  /**
+	   * NOTE: Some PCL versions contain a KDTree with a critical bug in
+	   * which setSearchRadius is ineffective (always uses K neighbours).
+	   *
+	   * Since DoN *requires* a fixed search radius, if you are getting
+	   * strange results in unorganized data, compare them with that
+	   * while using the Octree search method.
+	   */
 	  tree.reset (new pcl::search::Octree<PointT> (0.5));
 	}
 	tree->setInputCloud (cloud);
 
 	// Compute normals using both small and large scales at each point
 	// TODO: Use IntegralImageNormalEstimation for organized data
-	pcl::NormalEstimation<PointT, PointNT> ne;
+	pcl::NormalEstimationOMP<PointT, PointNT> ne;
 	ne.setInputCloud (cloud);
 	ne.setSearchMethod (tree);
-	// NOTE: this is very important, so that we can ensure normals are all pointed in the same direction!
+
+	/**
+	 * NOTE: setting viewpoint is very important, so that we can ensure
+	 * normals are all pointed in the same direction!
+	 */
 	ne.setViewPoint(std::numeric_limits<float>::max(),std::numeric_limits<float>::max(),std::numeric_limits<float>::max());
 
 	if(scale1 >= scale2){
@@ -146,25 +158,9 @@ int main(int argc, char *argv[])
 	  pcl::ConditionOr<PointOutT> ());
 	range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
 			  pcl::FieldComparison<PointOutT> ("curvature", pcl::ComparisonOps::GT, 0.5)));
-	/*
-	range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
-	  pcl::FieldComparison<PointOutT> ("normal_x", pcl::ComparisonOps::GT, 0.0)));
-	range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
-	  pcl::FieldComparison<PointOutT> ("normal_y", pcl::ComparisonOps::GT, 0.0)));
-	range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
-	  pcl::FieldComparison<PointOutT> ("normal_z", pcl::ComparisonOps::GT, 0.0)));
-
-	range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
-	  pcl::FieldComparison<PointOutT> ("normal_x", pcl::ComparisonOps::LT, 0.0)));
-	range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
-	  pcl::FieldComparison<PointOutT> ("normal_y", pcl::ComparisonOps::LT, 0.0)));
-	range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
-	  pcl::FieldComparison<PointOutT> ("normal_z", pcl::ComparisonOps::LT, 0.0)));
-	 */
 	// build the filter
 	pcl::ConditionalRemoval<PointOutT> condrem (range_cond);
 	condrem.setInputCloud (doncloud);
-
 
 	pcl::PointCloud<PointOutT>::Ptr doncloud_filtered (new pcl::PointCloud<PointOutT>);
 
