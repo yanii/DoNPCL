@@ -75,10 +75,6 @@ int main(int argc, char *argv[])
 	// Process options.
 	po::notify(vm);
 
-	//Verbose mode
-	bool verbose = vm.count("verbose");
-
-
 	// Load cloud in blob format
 	sensor_msgs::PointCloud2 blob;
 	pcl::io::loadPCDFile (infile.c_str(), blob);
@@ -89,8 +85,6 @@ int main(int argc, char *argv[])
         pcl::fromROSMsg (blob, *xyzcloud);
         copyPointCloud<pcl::PointXYZ, PointT>(*xyzcloud, *cloud);
         cout << "done." << endl;
-
-	int pnumber = (int)cloud->size ();
 
 	SearchPtr tree;
 

@@ -25,7 +25,6 @@ namespace po = boost::program_options;
 typedef pcl::PointXYZRGB PointT;
 typedef pcl::Normal PointNT;
 typedef pcl::PointNormal PointOutT;
-typedef typename pcl::search::Search<PointT>::Ptr SearchPtr;
 
 int main(int argc, char *argv[])
 {
@@ -108,10 +107,9 @@ int main(int argc, char *argv[])
 
 	//maximum answers for search radius
 	const int max_answers = 500;
-	//cloud_device.size()?
 	//buffer for results
 	cout << "Creating GPU NormalEstimation output dev..." << endl;
-	pcl::gpu::Feature::Normals result_device(max_answers);
+	pcl::gpu::Feature::Normals result_device(cloud_device.size());
 
 	//the normals calculated with the small scale
 	cout << "Calculating normals for scale..." << scale1 << endl;
@@ -119,7 +117,7 @@ int main(int argc, char *argv[])
 	ne.compute (result_device);
 
 	//the normals calculated with the small scale
-	cout << "Downloading results from GPU..." << scale1 << endl;
+	cout << "Downloading results from GPU..." << endl;
 	std::vector<PointXYZ> normals_small_scale_vec(result_device.size());
 	result_device.download(normals_small_scale_vec);
 
@@ -133,7 +131,7 @@ int main(int argc, char *argv[])
 	ne.setRadiusSearch (scale2, max_answers);
 	ne.compute (result_device);
 
-	cout << "Downloading results from GPU..." << scale1 << endl;
+	cout << "Downloading results from GPU..." << endl;
 	std::vector<PointXYZ> normals_large_scale_vec(result_device.size());
 	result_device.download(normals_large_scale_vec);
 
