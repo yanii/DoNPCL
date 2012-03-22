@@ -198,7 +198,7 @@ int main(int argc, char *argv[])
 	  pcl::PCDWriter writer;
 
 	  int j = 0;
-	  for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
+	  for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it, j++)
 	  {
 		pcl::PointCloud<PointOutT>::Ptr cloud_cluster_don (new pcl::PointCloud<PointOutT>);
 		for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); pit++){
@@ -272,7 +272,6 @@ int main(int argc, char *argv[])
                 ss << outfile.substr(0,outfile.length()-4) << "_mesh_" << j << ".vtk";
                 pcl::io::saveVTKFile (ss.str(), triangles);
 
-		j++;
 	  }
 	}
 
