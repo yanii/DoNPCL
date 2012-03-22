@@ -19,6 +19,8 @@
 #include <pcl/filters/conditional_removal.h>
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/segmentation/extract_clusters.h>
+#include <pcl/surface/gp3.h>
+#include <pcl/io/vtk_io.h>
 
 namespace po = boost::program_options;
 
@@ -51,7 +53,7 @@ int main(int argc, char *argv[])
 	po::options_description desc("Program options");
 	desc.add_options()
 		//Program mode option
-		("verbose", "display verbose messages")
+		("meshclusters", "create meshes for the clusters")
 		("help", "produce help message")
 		//Options
 		("smallscale", po::value<double>(&scale1)->required(), "the small scale to use in the DoN filter")
@@ -59,7 +61,7 @@ int main(int argc, char *argv[])
 		("infile", po::value<string>(&infile)->required(), "the file to read a point cloud from")
 		("outfile", po::value<string>(&outfile)->required(), "the file to write the DoN point cloud & normals to")
 		("magthreshold", po::value<double>(&threshold), "the minimum DoN magnitude to filter by")
-		("segment", po::value<double>(&segradius), "the file to write the DoN point cloud & normals to")
+		("segment", po::value<double>(&segradius), "segment scene into clusters with given distance tolerance")
 		;
 	// Parse the command line
 	po::variables_map vm;
@@ -198,18 +200,78 @@ int main(int argc, char *argv[])
 	  int j = 0;
 	  for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
 	  {
-		pcl::PointCloud<PointOutT>::Ptr cloud_cluster (new pcl::PointCloud<PointOutT>);
+		pcl::PointCloud<PointOutT>::Ptr cloud_cluster_don (new pcl::PointCloud<PointOutT>);
 		for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); pit++){
-		  cloud_cluster->points.push_back (doncloud->points[*pit]); //*
+		  cloud_cluster_don->points.push_back (doncloud->points[*pit]);
 		}
-		cloud_cluster->width = cloud_cluster->points.size ();
-		cloud_cluster->height = 1;
-		cloud_cluster->is_dense = true;
 
-		std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size () << " data points." << std::endl;
+		cloud_cluster_don->width = cloud_cluster_don->points.size ();
+		cloud_cluster_don->height = 1;
+		cloud_cluster_don->is_dense = true;
+
+		std::cout << "PointCloud representing the Cluster: " << cloud_cluster_don->points.size () << " data points." << std::endl;
 		std::stringstream ss;
 		ss << outfile.substr(0,outfile.length()-4) << "_cluster_" << j << ".pcd";
-		writer.write<PointOutT> (ss.str (), *cloud_cluster, false); //*
+		writer.write<PointOutT> (ss.str (), *cloud_cluster_don, false);
+
+		if(!vm.count("meshclusters")){
+		  continue;
+		}
+
+                //Mesh the cluster
+		std::cout << "Meshing the Cluster: " << cloud_cluster_don->points.size () << " data points." << std::endl;
+
+	        PointCloud<pcl::PointXYZ>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZ>);
+	        copyPointCloud<PointOutT, pcl::PointXYZ>(*cloud_cluster_don, *cloud_cluster);
+
+		// Normal estimation*
+                pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> n;
+                pcl::PointCloud<pcl::Normal>::Ptr meshnormals (new pcl::PointCloud<pcl::Normal>);
+                pcl::search::KdTree<pcl::PointXYZ>::Ptr clustertree (new pcl::search::KdTree<pcl::PointXYZ>);
+                clustertree->setInputCloud (cloud_cluster);
+                n.setInputCloud (cloud_cluster);
+                n.setSearchMethod (clustertree);
+                n.setKSearch (20);
+                n.compute (*meshnormals);
+
+                // Concatenate the XYZ and normal fields
+                pcl::PointCloud<pcl::PointNormal>::Ptr cloud_with_normals (new pcl::PointCloud<pcl::PointNormal>);
+                pcl::concatenateFields (*cloud_cluster, *meshnormals, *cloud_with_normals);
+
+                // Create search tree
+                pcl::search::KdTree<pcl::PointNormal>::Ptr clustersearchtree (new pcl::search::KdTree<pcl::PointNormal>);
+                clustersearchtree->setInputCloud (cloud_with_normals);
+
+                // Create a KD-Tree
+                pcl::search::KdTree<pcl::PointXYZ>::Ptr cluster_tree (new pcl::search::KdTree<pcl::PointXYZ>);
+
+                // Initialize objects
+                pcl::GreedyProjectionTriangulation<pcl::PointNormal> gp3;
+                pcl::PolygonMesh triangles;
+
+                // Set the maximum distance between connected points (maximum edge length)
+                gp3.setSearchRadius (scale1*2);
+
+                // Set typical values for the parameters
+                gp3.setMu (2.5);
+                gp3.setMaximumNearestNeighbors (500);
+                gp3.setMaximumSurfaceAngle(M_PI/4); // 45 degrees
+                gp3.setMinimumAngle(M_PI/18); // 10 degrees
+                gp3.setMaximumAngle(2*M_PI/3); // 120 degrees
+                gp3.setNormalConsistency(true);
+
+                // Get result
+                gp3.setInputCloud (cloud_with_normals);
+                gp3.setSearchMethod (clustersearchtree);
+                gp3.reconstruct (triangles);
+
+                // Additional vertex information
+                std::vector<int> parts = gp3.getPartIDs();
+                std::vector<int> states = gp3.getPointStates();
+                ss.str("");
+                ss << outfile.substr(0,outfile.length()-4) << "_mesh_" << j << ".vtk";
+                pcl::io::saveVTKFile (ss.str(), triangles);
+
 		j++;
 	  }
 	}

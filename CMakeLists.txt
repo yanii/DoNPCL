@@ -28,6 +28,8 @@ include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
+find_package(CUDA)
+
 MESSAGE("PCL information:") 
 MESSAGE("  PCL_INCLUDE_DIRS: ${PCL_INCLUDE_DIRS}") 
 MESSAGE("  PCL_LIBRARIES: ${PCL_LIBRARIES}") 
