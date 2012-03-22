@@ -106,6 +106,7 @@ int main(int argc, char *argv[])
 	}
 
 	//maximum answers for search radius
+	//NOTE: lower this if you are running out of GPU memory
 	const int max_answers = 500;
 	//buffer for results
 	cout << "Creating GPU NormalEstimation output dev..." << endl;
