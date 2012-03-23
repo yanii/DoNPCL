@@ -27,7 +27,7 @@ namespace po = boost::program_options;
 typedef pcl::PointXYZRGB PointT;
 typedef pcl::PointNormal PointNT;
 typedef pcl::PointNormal PointOutT;
-typedef typename pcl::search::Search<PointT>::Ptr SearchPtr;
+typedef pcl::search::Search<PointT>::Ptr SearchPtr;
 
 int main(int argc, char *argv[])
 {
@@ -157,6 +157,11 @@ int main(int argc, char *argv[])
 	//Compute DoN
 	don.computeFeature(*doncloud);
 
+        pcl::PCDWriter writer;
+
+        // Save DoN features
+        writer.write<PointOutT> (outfile.c_str (), *doncloud, false);
+
 	//Filter by magnitude
 	if(vm.count("magthreshold")){
 	  cout << "Filtering out DoN mag <= "<< threshold <<  "..." << endl;
@@ -176,6 +181,13 @@ int main(int argc, char *argv[])
 	  condrem.filter (*doncloud_filtered);
 
 	  doncloud = doncloud_filtered;
+
+          // Save filtered output
+          std::cout << "Filtered Pointcloud: " << doncloud->points.size () << " data points." << std::endl;
+          std::stringstream ss;
+          ss << outfile.substr(0,outfile.length()-4) << "_threshold_"<< threshold << "_.pcd";
+          writer.write<PointOutT> (ss.str (), *doncloud, false);
+
 	}
 
 	//Filter by magnitude
@@ -195,8 +207,6 @@ int main(int argc, char *argv[])
 	  ec.setInputCloud (doncloud);
 	  ec.extract (cluster_indices);
 
-	  pcl::PCDWriter writer;
-
 	  int j = 0;
 	  for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it, j++)
 	  {
@@ -211,7 +221,7 @@ int main(int argc, char *argv[])
 
 		std::cout << "PointCloud representing the Cluster: " << cloud_cluster_don->points.size () << " data points." << std::endl;
 		std::stringstream ss;
-		ss << outfile.substr(0,outfile.length()-4) << "_cluster_" << j << ".pcd";
+		ss << outfile.substr(0,outfile.length()-4) << "_threshold_"<< threshold << "_cluster_" << j << ".pcd";
 		writer.write<PointOutT> (ss.str (), *cloud_cluster_don, false);
 
 		if(!vm.count("meshclusters")){
@@ -269,16 +279,11 @@ int main(int argc, char *argv[])
                 std::vector<int> parts = gp3.getPartIDs();
                 std::vector<int> states = gp3.getPointStates();
                 ss.str("");
-                ss << outfile.substr(0,outfile.length()-4) << "_mesh_" << j << ".vtk";
+                ss << outfile.substr(0,outfile.length()-4) << "_threshold_"<< threshold << "_mesh_" << j << ".vtk";
                 pcl::io::saveVTKFile (ss.str(), triangles);
 
 	  }
 	}
-
-	// Save filtered output
-	sensor_msgs::PointCloud2 outblob;
-	pcl::toROSMsg(*doncloud, outblob);
-	pcl::io::savePCDFile (outfile.c_str (), outblob);
 
 	return (0);
 }
