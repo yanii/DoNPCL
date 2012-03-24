@@ -106,6 +106,7 @@ int main(int argc, char *argv[])
 	}
 
 	//maximum answers for search radius
+	//NOTE: lower this if you are running out of GPU memory
 	const int max_answers = 500;
 	//buffer for results
 	cout << "Creating GPU NormalEstimation output dev..." << endl;
@@ -215,28 +216,6 @@ int main(int argc, char *argv[])
             std::stringstream ss;
             ss << "cloud_cluster_" << j << ".pcd";
             writer.write<PointOutT> (ss.str (), *cloud_cluster, false); //*
-
-            //Mesh the cluster
-
-            // Output has the PointNormal type in order to store the normals calculated by MLS
-            pcl::PointCloud<pcl::PointNormal> mls_points;
-
-            // Init object (second point type is for the normals, even if unused)
-            pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointNormal> mls;
-
-            mls.setComputeNormals (true);
-
-            // Set parameters
-            mls.setInputCloud (cloud_cluster);
-            mls.setPolynomialFit (true);
-            mls.setSearchMethod (tree);
-            mls.setSearchRadius (segradius/2);
-
-            // Reconstruct
-            mls.process (mls_points);
-            ss.str("");
-            ss << "cloud_cluster_" << j << ".pcd";
-            pcl::io::savePCDFile (ss.str(), mls_points);
 
             j++;
           }
