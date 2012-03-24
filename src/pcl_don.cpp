@@ -21,6 +21,7 @@
 #include <pcl/segmentation/extract_clusters.h>
 #include <pcl/surface/gp3.h>
 #include <pcl/io/vtk_io.h>
+#include <pcl/filters/voxel_grid.h>
 
 namespace po = boost::program_options;
 
@@ -34,7 +35,7 @@ int main(int argc, char *argv[])
 	///The smallest scale to use in the DoN filter.
 	double scale1;
 
-	///The smallest scale to use in the DoN filter.
+	///The largest scale to use in the DoN filter.
 	double scale2;
 
 	///The file to read from.
@@ -49,6 +50,8 @@ int main(int argc, char *argv[])
         ///The euclidian cluster distance to use
         double segradius;
 
+        double decimation;
+
 	// Declare the supported options.
 	po::options_description desc("Program options");
 	desc.add_options()
@@ -62,6 +65,7 @@ int main(int argc, char *argv[])
 		("outfile", po::value<string>(&outfile)->required(), "the file to write the DoN point cloud & normals to")
 		("magthreshold", po::value<double>(&threshold), "the minimum DoN magnitude to filter by")
 		("segment", po::value<double>(&segradius), "segment scene into clusters with given distance tolerance")
+		("approx", po::value<double>(&decimation), "voxelization factor of pointcloud to use in approximation of normals")
 		;
 	// Parse the command line
 	po::variables_map vm;
@@ -82,10 +86,8 @@ int main(int argc, char *argv[])
 	pcl::io::loadPCDFile (infile.c_str(), blob);
 
 	pcl::PointCloud<PointT>::Ptr cloud (new pcl::PointCloud<PointT>);
-        cout << "Converting point cloud...";
-        PointCloud<pcl::PointXYZ>::Ptr xyzcloud (new pcl::PointCloud<pcl::PointXYZ>);
-        pcl::fromROSMsg (blob, *xyzcloud);
-        copyPointCloud<pcl::PointXYZ, PointT>(*xyzcloud, *cloud);
+        cout << "Loading point cloud...";
+        pcl::fromROSMsg (blob, *cloud);
         cout << "done." << endl;
 
 	SearchPtr tree;
@@ -107,12 +109,40 @@ int main(int argc, char *argv[])
 	  //tree.reset (new pcl::search::Octree<PointT> (0.5));
           tree.reset (new pcl::search::KdTree<PointT> (false));
 	}
-	tree->setInputCloud (cloud);
+        tree->setInputCloud (cloud);
+
+        PointCloud<PointT>::Ptr small_cloud_downsampled;
+        PointCloud<PointT>::Ptr large_cloud_downsampled;
+
+        // If we are using approximation
+        if(vm.count("approx")){
+          cout << "Downsampling point cloud for approximation" << endl;
+
+          // Create the downsampling filtering object
+          pcl::VoxelGrid<PointT> sor;
+          sor.setDownsampleAllData (false);
+          sor.setInputCloud (cloud);
+
+          // Create downsampled point cloud for DoN NN search with small scale
+          small_cloud_downsampled = PointCloud<PointT>::Ptr(new pcl::PointCloud<PointT>);
+          const float smalldownsample = scale1/decimation;
+          sor.setLeafSize (smalldownsample, smalldownsample, smalldownsample);
+          sor.filter (*small_cloud_downsampled);
+          cout << "Using leaf size of " << smalldownsample << " for small scale, " << small_cloud_downsampled->size() << " points" << endl;
+
+          // Create downsampled point cloud for DoN NN search with large scale
+          large_cloud_downsampled = PointCloud<PointT>::Ptr(new pcl::PointCloud<PointT>);
+          const float largedownsample = scale2/decimation;
+          sor.setLeafSize (largedownsample, largedownsample, largedownsample);
+          sor.filter (*large_cloud_downsampled);
+          cout << "Using leaf size of " << largedownsample << " for large scale, " << large_cloud_downsampled->size() << " points" << endl;
+        }else{
+        }
 
 	// Compute normals using both small and large scales at each point
 	pcl::NormalEstimationOMP<PointT, PointNT> ne;
 	ne.setInputCloud (cloud);
-	ne.setSearchMethod (tree);
+        ne.setSearchMethod (tree);
 
 	/**
 	 * NOTE: setting viewpoint is very important, so that we can ensure
@@ -128,19 +158,27 @@ int main(int argc, char *argv[])
 	//the normals calculated with the small scale
 	cout << "Calculating normals for scale..." << scale1 << endl;
 	pcl::PointCloud<PointNT>::Ptr normals_small_scale (new pcl::PointCloud<PointNT>);
+
+
+        if(vm.count("approx")){
+          ne.setSearchSurface(small_cloud_downsampled);
+        }
 	ne.setRadiusSearch (scale1);
 	ne.compute (*normals_small_scale);
 
 	cout << "Calculating normals for scale..." << scale2 << endl;
 	//the normals calculated with the large scale
 	pcl::PointCloud<PointNT>::Ptr normals_large_scale (new pcl::PointCloud<PointNT>);
+
+        if(vm.count("approx")){
+          ne.setSearchSurface(large_cloud_downsampled);
+        }
 	ne.setRadiusSearch (scale2);
 	ne.compute (*normals_large_scale);
 
 	// Create output cloud for DoN results
 	PointCloud<PointOutT>::Ptr doncloud (new pcl::PointCloud<PointOutT>);
-	pcl::fromROSMsg (blob, *xyzcloud);
-	copyPointCloud<pcl::PointXYZ, PointOutT>(*xyzcloud, *doncloud);
+	copyPointCloud<PointT, PointOutT>(*cloud, *doncloud);
 
 	cout << "Calculating DoN... " << endl;
 	// Create DoN operator
