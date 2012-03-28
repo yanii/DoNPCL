@@ -6,19 +6,25 @@
  * @date 2012-03-11
  */
 
-#include "pcl_don.h"
 #include <boost/program_options.hpp>
 #include <string>
 
+#include <pcl/point_types.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/common/point_operators.h>
 #include <pcl/common/io.h>
-
 #include <pcl/filters/conditional_removal.h>
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/segmentation/extract_clusters.h>
 
 #include <pcl/gpu/features/features.hpp>
 #include <pcl/gpu/octree/octree.hpp>
+
+#include <pcl/features/don.h>
+
+using namespace pcl;
+using namespace std;
 
 namespace po = boost::program_options;
 

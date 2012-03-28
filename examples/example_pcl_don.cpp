@@ -6,10 +6,12 @@
  * @date 2012-03-11
  */
 
-#include "pcl_don.h"
 #include <boost/program_options.hpp>
 #include <string>
 
+#include <pcl/point_types.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/common/point_operators.h>
 #include <pcl/common/io.h>
 #include <pcl/search/organized.h>
@@ -22,6 +24,11 @@
 #include <pcl/surface/gp3.h>
 #include <pcl/io/vtk_io.h>
 #include <pcl/filters/voxel_grid.h>
+
+#include <pcl/features/don.h>
+
+using namespace pcl;
+using namespace std;
 
 namespace po = boost::program_options;
 
@@ -106,7 +113,7 @@ int main(int argc, char *argv[])
 	   * strange results in unorganized data, compare them with that
 	   * while using the Octree search method.
 	   */
-	  //tree.reset (new pcl::search::Octree<PointT> (0.5));
+	  //tree.reset (new pcl::search::Octree<PointT> (scale1/10));
           tree.reset (new pcl::search::KdTree<PointT> (false));
 	}
         tree->setInputCloud (cloud);
@@ -239,7 +246,7 @@ int main(int argc, char *argv[])
 	  pcl::EuclideanClusterExtraction<PointOutT> ec;
 
 	  ec.setClusterTolerance (segradius);
-	  ec.setMinClusterSize (100);
+	  ec.setMinClusterSize (50);
 	  ec.setMaxClusterSize (100000);
 	  ec.setSearchMethod (segtree);
 	  ec.setInputCloud (doncloud);

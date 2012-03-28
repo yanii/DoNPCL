@@ -49,3 +49,4 @@ INCLUDE_DIRECTORIES(include)
 ##### Subdirectories #####
 add_subdirectory(cmake)
 add_subdirectory(src)
+add_subdirectory(examples)
