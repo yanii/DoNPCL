@@ -1,0 +1,132 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>DoNPCL by yanii</title>
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script src="javascripts/respond.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <!--[if lt IE 8]>
+    <link rel="stylesheet" href="stylesheets/ie.css">
+    <![endif]-->
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+  </head>
+  <body>
+      <div id="header">
+        <nav>
+          <li class="fork"><a href="https://github.com/yanii/DoNPCL">View On GitHub</a></li>
+          <li class="downloads"><a href="https://github.com/yanii/DoNPCL/zipball/master">ZIP</a></li>
+          <li class="downloads"><a href="https://github.com/yanii/DoNPCL/tarball/master">TAR</a></li>
+          <li class="title">DOWNLOADS</li>
+        </nav>
+      </div><!-- end header -->
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>DoNPCL</h1>
+          <p>Difference of Normals PCL Implementation</p>
+          <hr>
+          <span class="credits left">Project maintained by <a href="https://github.com/yanii">yanii</a></span>
+          <span class="credits right">Hosted on GitHub Pages &mdash; Theme by <a href="http://twitter.com/#!/michigangraham">mattgraham</a></span>
+        </div>
+
+        <h3>Welcome to GitHub Pages.</h3>
+
+<p>DoNPCL is an implementation of the Difference of Normals (DoN) operator as a PCL feature. The DoN is a scale-based feature that may be used to perform segmentation of points in an unorganized pointcloud by scale, and is useful for isolating objects of known scale from a dense scene.</p>
+
+<h3>Requirements</h3>
+
+<p>You will need the following before you can compile DoNPCL:</p>
+
+<ul>
+<li><a href="http://pointclouds.org/downloads/">PCL</a></li>
+</ul><p>In addition for the example code you need the following:</p>
+
+<ul>
+<li><a href="http://www.boost.org/users/download/">Boost program-options module</a></li>
+</ul><h3>Compiling</h3>
+
+<p>The DoNPCL source code uses a standard PCL feature layout, using CMake for the build system. To configure the project, and compile the module, from within the downloaded/checked out source code folder:</p>
+
+<pre><code>$ mkdir build
+$ cd build
+$ cmake ..
+$ make
+</code></pre>
+
+<p>This will build the main module, and the example code.</p>
+
+<h3>Getting Started</h3>
+
+<p>Included with the DoNPCL module are two examples. Calculating DoN requires calculating normals for the point cloud at various scales, one of the examples calculates the normals using the CPU while the other uses GPU processing (GPU is experimental and is likely to run out of memory for large pointclouds).</p>
+
+<h3>Running the example (<code>example_pcl_don.cpp</code>)</h3>
+
+<p>The example code can find the DoN features for a pointcloud, and perform various useful functions on the results. The only required parameters are:</p>
+
+<pre><code>smallscale - the small scale to use in the DoN filter (e.g 0.1m).
+largescale - the large scale to use in the DoN filter (e.g. 1.0m).
+infile - the file to read a point cloud from (PCD).
+outfile - the file to write the DoN point cloud &amp; normals to (PCD).
+</code></pre>
+
+<p>Running the example program with only these parameters will result in a pointcloud annotated with a DoN vector field, i.e. the (unit vector) difference of the normals between the two scales. There are also a set of optional parameters that will perform additional operations on the resulting vector field, they are described in more detail below:</p>
+
+<pre><code>magthreshold - po::value&lt;double&gt;(&amp;threshold), "the minimum DoN magnitude to filter by
+segment - segment scene into clusters with given distance tolerance.
+meshclusters - create meshes for the clusters found using segment mode.
+approx - voxelization factor of pointcloud to use in approximation of normals.
+</code></pre>
+
+<h3>Calculating the DoN Vector Field</h3>
+
+<p>For example, running the program on our example point cloud:</p>
+
+<p><code>example_pcl_don --smallscale 0.1 --largescale 1.0 --infile input.pcd --output output.pcd</code></p>
+
+<p><img src="inputdon.png" alt="Input pointcloud input.pcd"></p>
+
+<p>The following vector annotated pointcloud is created - visualized using PCL's pcd_viewer, where the magnitude of the DoN vector field is visualized using a colour map.</p>
+
+<p><img src="outputdon.png" alt="Output DoN annotated vector field"></p>
+
+<h3>Thresholding the DoN Vector Field</h3>
+
+<p><img src="inputdonseg.png" alt="Input pointcloud input.pcd"><img src="outputdonseg.png" alt="Output DoN thresholded point cloud"></p>
+
+<p>We can use the DoN vector field to isolate objects that fit within the scales we used when calculating the DoN vector field, by thresholding the magnitude of the DoN vector at each point. For example,</p>
+
+<p><code>example_pcl_don --smallscale 0.2 --largescale 2.0 --magthreshold 0.25 --infile input.pcd --output output.pcd</code></p>
+
+<p>Notice the new parameter <code>magthreshold</code>, this gives a minimum magnitude threshold for the DoN vector field. DoN vectors are unit vectors, meaning the magnitude is in the range [0,1].</p>
+
+<h3>Clustering the DoN Vector Field</h3>
+
+<p><img src="inputdoncluster.png" alt="Input pointcloud input.pcd"><img src="outputdoncluster.png" alt="Output clusters found"></p>
+
+<p>Once we have thresholded the scene, we are often left with objects nicely isolated into clusters/connected component groupings. We can use a simple clustering method to cluster all points within a distance tolerance of each other using the <code>segment</code> mode:</p>
+
+<p><code>example_pcl_don --smallscale 0.2 --largescale 2.0 --magthreshold 0.25 --segment 0.2 --infile input.pcd --output output.pcd</code></p>
+
+<h3>References</h3>
+
+<p>Please reference the following when using this method in a published paper/conference proceedings.</p>
+
+<ul>
+<li><a href="https://qspace.library.queensu.ca/handle/1974/5443">Automatic Urban Modelling using Mobile Urban LIDAR Data</a></li>
+</ul>
+      </section>
+
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><!--<![endif]-->
+    
+  </body>
+</html>
