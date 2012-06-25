@@ -32,7 +32,7 @@ using namespace std;
 
 namespace po = boost::program_options;
 
-typedef pcl::PointXYZRGB PointT;
+typedef pcl::PointXYZ PointT;
 typedef pcl::PointNormal PointNT;
 typedef pcl::PointNormal PointOutT;
 typedef pcl::search::Search<PointT>::Ptr SearchPtr;

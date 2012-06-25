@@ -1,7 +1,10 @@
 add_executable(example_pcl_don example_pcl_don.cpp)
 target_link_libraries(example_pcl_don don ${Boost_LIBRARIES} ${PCL_LIBRARIES})
 
-INSTALL(TARGETS example_pcl_don
+add_executable(example_pcl_don_kinect example_pcl_don_kinect.cpp)
+target_link_libraries(example_pcl_don_kinect don ${Boost_LIBRARIES} ${PCL_LIBRARIES})
+
+INSTALL(TARGETS example_pcl_don example_pcl_don_kinect
   RUNTIME DESTINATION bin COMPONENT app
   LIBRARY DESTINATION lib COMPONENT runtime
   ARCHIVE DESTINATION lib COMPONENT runtime
