@@ -52,6 +52,9 @@
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/filters/conditional_removal.h>
 
+#include <pcl/gpu/features/features.hpp>
+#include <pcl/gpu/octree/octree.hpp>
+
 #include <pcl/features/don.h>
 
 #define FPS_CALC(_WHAT_) \
@@ -96,13 +99,22 @@ class OpenNIDoNEstimation
       FPS_CALC ("computation");
       // Estimate surface normals
 
+      xyzcloud_.reset(new pcl::PointCloud<pcl::PointXYZ>);
       normals_small_scale_.reset (new pcl::PointCloud<pcl::PointNormal>);
       normals_large_scale_.reset (new pcl::PointCloud<pcl::PointNormal>);
       don_.reset (new pcl::PointCloud<pcl::PointNormal>);
 
       double start = pcl::getTime ();
 
-      ne_.setInputCloud (cloud);
+      cout << "Uploading point cloud to GPU ..." << endl;
+
+      pcl::copyPointCloud<PointType, pcl::PointXYZ>(*cloud, *xyzcloud_);
+
+
+      pcl::gpu::Octree::PointCloud cloud_device_;
+      cloud_device_.upload(xyzcloud_->points);
+
+      ne_.setInputCloud (cloud_device_);
 
       /**
        * NOTE: setting viewpoint is very important, so that we can ensure
@@ -115,36 +127,39 @@ class OpenNIDoNEstimation
         exit(EXIT_FAILURE);
       }
 
-      if (cloud->isOrganized ())
-      {
-        tree_.reset (new pcl::search::OrganizedNeighbor<PointType> ());
-      }
-      else
-      {
-        /**
-         * NOTE: Some PCL versions contain a KDTree with a critical bug in
-         * which setSearchRadius is ineffective (always uses K neighbours).
-         *
-         * Since DoN *requires* a fixed search radius, if you are getting
-         * strange results in unorganized data, compare them with that
-         * while using the Octree search method.
-         */
-        //tree.reset (new pcl::search::Octree<PointType> (scale1/10));
-        tree_.reset (new pcl::search::KdTree<PointType> (false));
-      }
-      tree_->setInputCloud (cloud);
+      pcl::gpu::Feature::Normals result_device_(cloud->size());
 
-      ne_.setSearchMethod (tree_);
+      //maximum answers for search radius
+      //NOTE: lower this if you are running out of GPU memory
+      const int max_answers = 200;
 
       //the normals calculated with the small scale
       cout << "Calculating normals for scale..." << scale_s_ << endl;
-      ne_.setRadiusSearch (scale_s_);
-      ne_.compute (*normals_small_scale_);
+      ne_.setRadiusSearch (scale_s_, max_answers);
+      ne_.compute (result_device_);
+
+      cout << "Downloading results from GPU..." << endl;
+      std::vector<pcl::PointXYZ> normals_small_scale_vec(result_device_.size());
+      result_device_.download(normals_small_scale_vec);
+
+      pcl::PointCloud<pcl::Normal>::Ptr normals_small_scale (new pcl::PointCloud<pcl::Normal>);
+      for(std::vector<pcl::PointXYZ>::iterator resultpt = normals_small_scale_vec.begin(); resultpt != normals_small_scale_vec.end(); resultpt++){
+        normals_small_scale->push_back(pcl::Normal(resultpt->x, resultpt->y, resultpt->z));
+      }
 
       //the normals calculated with the small scale
       cout << "Calculating normals for scale..." << scale_l_ << endl;
-      ne_.setRadiusSearch (scale_l_);
-      ne_.compute (*normals_large_scale_);
+      ne_.setRadiusSearch (scale_l_, max_answers);
+      ne_.compute (result_device_);
+
+      cout << "Downloading results from GPU..." << endl;
+      std::vector<pcl::PointXYZ> normals_large_scale_vec(result_device_.size());
+      result_device_.download(normals_large_scale_vec);
+
+      pcl::PointCloud<pcl::Normal>::Ptr normals_large_scale (new pcl::PointCloud<pcl::Normal>);
+      for(std::vector<pcl::PointXYZ>::iterator resultpt = normals_large_scale_vec.begin(); resultpt != normals_large_scale_vec.end(); resultpt++){
+        normals_large_scale->push_back(pcl::Normal(resultpt->x, resultpt->y, resultpt->z));
+      }
 
       cout << "Calculating DoN... " << endl;
 
@@ -163,8 +178,10 @@ class OpenNIDoNEstimation
       //Compute DoN
       done_.computeFeature(*don_);
 
-      writer.write<PointType> ("kinect.pcd", *cloud, false);
-      writer.write<pcl::PointNormal> ("kinectdon.pcd", *don_, false);
+      /**
+       * writer.write<PointType> ("kinect.pcd", *cloud, false);
+       * writer.write<pcl::PointNormal> ("kinectdon.pcd", *don_, false);
+
 
       float threshold = 0.25;
 
@@ -189,7 +206,7 @@ class OpenNIDoNEstimation
       // Save filtered output
       std::cout << "Filtered Pointcloud: " << don_->points.size () << " data points." << std::endl;
       writer.write<pcl::PointNormal> ("kinectdonfilt.pcd", *don_, false);
-
+*/
       double stop = pcl::getTime ();
       std::cout << "Time for DoN estimation: " << (stop - start) * 1000.0 << " ms" << std::endl;
       cloud_ = cloud;
@@ -263,7 +280,10 @@ class OpenNIDoNEstimation
       interface->stop ();
     }
 
-    pcl::NormalEstimationOMP<PointType, pcl::PointNormal> ne_;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr xyzcloud_;
+    //pcl::gpu::Octree::PointCloud cloud_device_;
+    //pcl::gpu::Feature::Normals result_device_;
+    pcl::gpu::NormalEstimation ne_;
     pcl::DifferenceOfNormalsEstimation<PointType, pcl::PointNormal, pcl::PointNormal> done_;
     pcl::visualization::CloudViewer viewer;
     pcl::PCDWriter writer;
@@ -275,7 +295,6 @@ class OpenNIDoNEstimation
     pcl::PointCloud<pcl::PointNormal>::Ptr normals_small_scale_;
     pcl::PointCloud<pcl::PointNormal>::Ptr normals_large_scale_;
     pcl::PointCloud<pcl::PointNormal>::Ptr don_;
-    SearchPtr tree_;
     CloudConstPtr cloud_;
     bool new_cloud_;
 };
@@ -318,18 +337,18 @@ main (int argc, char ** argv)
   std::cout << "<Q,q> quit\n\n";
 
   pcl::OpenNIGrabber grabber ("");
-  if (grabber.providesCallback<pcl::OpenNIGrabber::sig_cb_openni_point_cloud_rgba> ())
+  /*if (grabber.providesCallback<pcl::OpenNIGrabber::sig_cb_openni_point_cloud_rgba> ())
   {
     PCL_INFO ("PointXYZRGBA mode enabled.\n");
     OpenNIDoNEstimation<pcl::PointXYZRGBA> v (1, 0.1, "");
     v.run ();
   }
   else
-  {
+  {*/
     PCL_INFO ("PointXYZ mode enabled.\n");
     OpenNIDoNEstimation<pcl::PointXYZ> v (1, 0.1, "");
     v.run ();
-  }
+  //}
 
   return (0);
 }
