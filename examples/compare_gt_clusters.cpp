@@ -47,9 +47,13 @@ int main(int argc, char *argv[])
 		("groundtruth", po::value<string>(&infile)->required(), "the file to read a ground truth point cloud from")
 		("candidates", po::value<vector<string> >(&candidates)->required(), "the file(s) to read candidate point cloud from")
 		;
-	// Parse the command line
-	po::variables_map vm;
-	po::store(po::parse_command_line(argc, argv, desc), vm);
+
+        po::positional_options_description p;
+        p.add("candidates", -1);
+
+        po::variables_map vm;
+        po::store(po::command_line_parser(argc, argv).
+                  options(desc).positional(p).run(), vm);
 
 	// Print help
 	if (vm.count("help"))
@@ -66,9 +70,7 @@ int main(int argc, char *argv[])
 	pcl::io::loadPCDFile (infile.c_str(), blob);
 
 	pcl::PointCloud<PointT>::Ptr gt (new pcl::PointCloud<PointT>);
-        cout << "Loading ground truth point cloud...";
         pcl::fromROSMsg (blob, *gt);
-        cout << "done." << endl;
 
 	SearchPtr tree;
 
@@ -97,9 +99,31 @@ int main(int argc, char *argv[])
           pcl::io::loadPCDFile (cfile->c_str(), blob);
           candidate.reset(new pcl::PointCloud<PointT>);
 
-          cout << "Loading candidate point cloud " << *cfile << "...";
           pcl::fromROSMsg (blob, *candidate);
-          cout << "done." << endl;
+
+          //find the nearest neighbour for each point within numerical error EPSILON
+          std::vector< std::vector< int > > k_indices;
+          std::vector< std::vector< float > > k_sqr_distances;
+          const double EPSILON = 0.0001;
+          tree->setSortedResults (false);
+          tree->radiusSearch  (*candidate, vector<int>(), EPSILON, k_indices, k_sqr_distances, 1);
+
+          std::vector<int> intersection;
+
+          //For the set, calculate set union and set intersection
+          for (unsigned int i = 0; i < k_indices.size(); i++)
+          {
+            if(!k_indices[i].empty())
+            {
+              intersection.push_back(k_indices[i][0]);
+            }
+          }
+
+          unsigned int setintersection = intersection.size();
+          unsigned int setunion = gt->size() + candidate->size() - setintersection;
+          if(setintersection != 0){
+            cout << infile << ", " << *cfile << ", " << intersection.size() << ", " << setunion << endl;
+          }
         }
 
 	return (0);
