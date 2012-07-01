@@ -4,6 +4,9 @@ target_link_libraries(example_pcl_don don ${Boost_LIBRARIES} ${PCL_LIBRARIES})
 add_executable(example_pcl_don_pyramid example_pcl_don_pyramid.cpp)
 target_link_libraries(example_pcl_don_pyramid don ${Boost_LIBRARIES} ${PCL_LIBRARIES})
 
+add_executable(compare_gt_clusters compare_gt_clusters.cpp)
+target_link_libraries(compare_gt_clusters ${Boost_LIBRARIES} ${PCL_LIBRARIES})
+
 INSTALL(TARGETS example_pcl_don example_pcl_don_pyramid
   RUNTIME DESTINATION bin COMPONENT app
   LIBRARY DESTINATION lib COMPONENT runtime
