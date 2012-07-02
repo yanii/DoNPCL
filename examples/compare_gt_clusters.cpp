@@ -30,10 +30,15 @@ typedef pcl::PointNormal PointNT;
 typedef pcl::PointNormal PointOutT;
 typedef pcl::search::Search<PointT>::Ptr SearchPtr;
 
+const double EPSILON = 0.0001;
+
 int main(int argc, char *argv[])
 {
 	///The input ground truth.
 	string infile;
+
+        ///The original cloud.
+        string originalcloud;
 
 	///The candidate point clouds
 	vector<string> candidates;
@@ -45,6 +50,7 @@ int main(int argc, char *argv[])
 		("help", "produce help message")
 		//Options
 		("groundtruth", po::value<string>(&infile)->required(), "the file to read a ground truth point cloud from")
+		("originalcloud", po::value<string>(&originalcloud), "the file to read the original point cloud from (to calculate precision/recall)")
 		("candidates", po::value<vector<string> >(&candidates)->required(), "the file(s) to read candidate point cloud from")
 		;
 
@@ -72,6 +78,15 @@ int main(int argc, char *argv[])
 	pcl::PointCloud<PointT>::Ptr gt (new pcl::PointCloud<PointT>);
         pcl::fromROSMsg (blob, *gt);
 
+        pcl::PointCloud<PointT>::Ptr original (new pcl::PointCloud<PointT>);
+
+        // Load cloud in blob format
+        pcl::io::loadPCDFile (originalcloud.c_str(), blob);
+        pcl::fromROSMsg (blob, *original);
+
+        cout << "#"<< "ground truth" << ", " << "ground truth size" << ", " << "candidate" << ", " << "candidate size" << ", " << "original pointcloud" << ", "  << "original pointcloud size" << ", " << "setintersection" << ", " << "setunion" << ", "<< "intersection/union" << ", "
+            << "true positives" << ", " << "true negatives" << ", " << "false positives" << ", " << "falsenegatives" << ", " << "precision" << ", " << "recall" << ", " << "specificity" << endl;
+
 	SearchPtr tree;
 
 	if (gt->isOrganized ())
@@ -80,15 +95,6 @@ int main(int argc, char *argv[])
 	}
 	else
 	{
-	  /**
-	   * NOTE: Some PCL versions contain a KDTree with a critical bug in
-	   * which setSearchRadius is ineffective (always uses K neighbours).
-	   *
-	   * Since DoN *requires* a fixed search radius, if you are getting
-	   * strange results in unorganized data, compare them with that
-	   * while using the Octree search method.
-	   */
-	  //tree.reset (new pcl::search::Octree<PointT> (scale1/10));
           tree.reset (new pcl::search::KdTree<PointT> (false));
 	}
         tree->setInputCloud (gt);
@@ -104,7 +110,6 @@ int main(int argc, char *argv[])
           //find the nearest neighbour for each point within numerical error EPSILON
           std::vector< std::vector< int > > k_indices;
           std::vector< std::vector< float > > k_sqr_distances;
-          const double EPSILON = 0.0001;
           tree->setSortedResults (false);
           tree->radiusSearch  (*candidate, vector<int>(), EPSILON, k_indices, k_sqr_distances, 1);
 
@@ -121,9 +126,51 @@ int main(int argc, char *argv[])
 
           unsigned int setintersection = intersection.size();
           unsigned int setunion = gt->size() + candidate->size() - setintersection;
-          if(setintersection != 0){
-            cout << infile << ", " << *cfile << ", " << intersection.size() << ", " << setunion << endl;
+
+          if(setintersection == 0){
+            continue;
           }
+
+          int truepositives = setintersection;
+          int falsepositives = candidate->size() - truepositives;
+
+          //find number of falsenegatives
+          SearchPtr ctree;
+
+          if (candidate->isOrganized ())
+          {
+            ctree.reset (new pcl::search::OrganizedNeighbor<PointT> ());
+          }
+          else
+          {
+            ctree.reset (new pcl::search::KdTree<PointT> (false));
+          }
+          ctree->setInputCloud (candidate);
+          //find the nearest neighbour for each point within numerical error EPSILON
+          std::vector< std::vector< int > > gt_indices;
+          std::vector< std::vector< float > > gt_sqr_distances;
+          ctree->setSortedResults (false);
+          ctree->radiusSearch  (*gt, vector<int>(), EPSILON, gt_indices, gt_sqr_distances, 1);
+
+          int falsenegatives = 0;
+
+          //For the set, calculate set union and set intersection
+          for (unsigned int i = 0; i < gt_indices.size(); i++)
+          {
+            if(gt_indices[i].empty())
+            {
+              falsenegatives++;
+            }
+          }
+
+          int truenegatives = original->size() - truepositives - falsenegatives;
+
+          float precision = ((float)truepositives)/(truepositives+falsepositives);
+          float recall = ((float)truepositives)/(truepositives+falsenegatives);
+          float specificity = ((float)truenegatives)/(truenegatives+falsepositives);
+
+          cout << infile << ", " << gt->size() << ", " << *cfile << ", " << candidate->size() << ", " << originalcloud << ", "  << original->size() << ", " << setintersection << ", " << setunion << ", "<< (((float)setintersection)/((float)setunion)) << ", "
+              << truepositives << ", " << truenegatives << ", " << falsepositives << ", " << falsenegatives << ", " << precision << ", " << recall << ", " << specificity  << endl;
         }
 
 	return (0);

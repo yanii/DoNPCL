@@ -110,9 +110,9 @@ int main(int argc, char *argv[])
     pcl::io::loadPCDFile (modelfile->c_str(), blob);
 
     pcl::PointCloud<PointT>::Ptr cloud (new pcl::PointCloud<PointT>);
-    cout << "Loading model point cloud " << modelfile->c_str();
+    cout << "#Loading model point cloud " << modelfile->c_str();
     pcl::fromROSMsg (blob, *cloud);
-    cout << " done." << endl;
+    cout << "#done." << endl;
 
     SearchPtr tree;
 
@@ -141,7 +141,7 @@ int main(int argc, char *argv[])
       for(float scale1 = radius1; scale1 < scale2; scale1+= radiusincrement){
         // If we are using approximation
         if(vm.count("approx")){
-          cout << "Downsampling point cloud for approximation" << endl;
+          cout << "#Downsampling point cloud for approximation" << endl;
 
           // Create the downsampling filtering object
           pcl::VoxelGrid<PointT> sor;
@@ -153,14 +153,14 @@ int main(int argc, char *argv[])
           const float smalldownsample = scale1/decimation;
           sor.setLeafSize (smalldownsample, smalldownsample, smalldownsample);
           sor.filter (*small_cloud_downsampled);
-          cout << "Using leaf size of " << smalldownsample << " for small scale, " << small_cloud_downsampled->size() << " points" << endl;
+          cout << "#Using leaf size of " << smalldownsample << " for small scale, " << small_cloud_downsampled->size() << " points" << endl;
 
           // Create downsampled point cloud for DoN NN search with large scale
           large_cloud_downsampled = PointCloud<PointT>::Ptr(new pcl::PointCloud<PointT>);
           const float largedownsample = scale2/decimation;
           sor.setLeafSize (largedownsample, largedownsample, largedownsample);
           sor.filter (*large_cloud_downsampled);
-          cout << "Using leaf size of " << largedownsample << " for large scale, " << large_cloud_downsampled->size() << " points" << endl;
+          cout << "#Using leaf size of " << largedownsample << " for large scale, " << large_cloud_downsampled->size() << " points" << endl;
         }
 
         // Compute normals using both small and large scales at each point
@@ -241,7 +241,7 @@ int main(int argc, char *argv[])
     }
   }
 
-  std::cout << "r_s, r_l, min, max, count, sum, median, mean, variance" << std::endl;
+  std::cout << "#r_s, r_l, min, max, count, sum, median, mean, variance" << std::endl;
 
   for(map< pair<float, float>, boost::shared_ptr<accumulator_t> >::iterator i = stats.begin(); i != stats.end(); i++){
     std::cout << i->first.first << ", "
@@ -253,7 +253,16 @@ int main(int argc, char *argv[])
         << median(*i->second) << ", "
         << mean(*i->second) << ", "
         << variance(*i->second) << std::endl;
-    std::cout << std::endl;
+    //for missing data
+    std::cout << i->first.second << ", "
+            << i->first.first << ", "
+            << 0 << ", "
+            << 0 << ", "
+            << 0 << ", "
+            << 0 << ", "
+            << 0 << ", "
+            << 0 << ", "
+            << 0 << std::endl;
   }
 
   return (0);
