@@ -85,7 +85,13 @@ int main(int argc, char *argv[])
         pcl::fromROSMsg (blob, *original);
 
         cout << "#"<< "ground truth" << ", " << "ground truth size" << ", " << "candidate" << ", " << "candidate size" << ", " << "original pointcloud" << ", "  << "original pointcloud size" << ", " << "setintersection" << ", " << "setunion" << ", "<< "intersection/union" << ", "
-            << "true positives" << ", " << "true negatives" << ", " << "false positives" << ", " << "falsenegatives" << ", " << "precision" << ", " << "recall" << ", " << "specificity" << endl;
+            << "true positives" << ", "
+            //<< "true negatives" << ", "
+            << "false positives" << ", "
+            //<< "falsenegatives" << ", "
+            << "precision" << ", " << "recall" //<< ", "
+            //<< "specificity"
+            << endl;
 
 	SearchPtr tree;
 
@@ -100,6 +106,25 @@ int main(int argc, char *argv[])
         tree->setInputCloud (gt);
 
         pcl::PointCloud<PointT>::Ptr candidate;
+
+        float maxmetric = 0;
+        unsigned int maxintersection = 0;
+        unsigned int maxunion = 0;
+        string maxcfile;
+        unsigned int maxcfilesize = 0;
+
+        unsigned int setintersection = 0;
+        unsigned int setunion = 0;
+        float metric = 0;
+
+        //int truenegatives = 0;
+        int truepositives = 0;
+        int falsepositives = 0;
+        //int falsenegatives = 0;
+
+        float precision = 0;
+        float recall = 0;
+        //float specificity = 0;
 
         for(vector<string>::iterator cfile = candidates.begin(); cfile != candidates.end(); cfile++){
           pcl::io::loadPCDFile (cfile->c_str(), blob);
@@ -124,15 +149,22 @@ int main(int argc, char *argv[])
             }
           }
 
-          unsigned int setintersection = intersection.size();
-          unsigned int setunion = gt->size() + candidate->size() - setintersection;
+          setintersection = intersection.size();
+          setunion = gt->size() + candidate->size() - setintersection;
+          metric = (((float)setintersection)/((float)setunion));
 
-          if(setintersection == 0){
+          if(setintersection == 0 || maxintersection > setintersection){
             continue;
+          }else{
+            maxintersection = setintersection;
+            maxunion = setunion;
+            maxmetric = metric;
+            maxcfile = *cfile;
+            maxcfilesize = cfile->size();
           }
 
-          int truepositives = setintersection;
-          int falsepositives = candidate->size() - truepositives;
+          truepositives = setintersection;
+          falsepositives = candidate->size() - truepositives;
 
           //find number of falsenegatives
           SearchPtr ctree;
@@ -152,26 +184,33 @@ int main(int argc, char *argv[])
           ctree->setSortedResults (false);
           ctree->radiusSearch  (*gt, vector<int>(), EPSILON, gt_indices, gt_sqr_distances, 1);
 
-          int falsenegatives = 0;
+          //falsenegatives = 0;
 
           //For the set, calculate set union and set intersection
-          for (unsigned int i = 0; i < gt_indices.size(); i++)
+          /*for (unsigned int i = 0; i < gt_indices.size(); i++)
           {
             if(gt_indices[i].empty())
             {
               falsenegatives++;
             }
-          }
+          }*/
 
-          int truenegatives = original->size() - truepositives - falsenegatives;
+          //truenegatives = original->size() - truepositives - falsenegatives;
 
-          float precision = ((float)truepositives)/(truepositives+falsepositives);
-          float recall = ((float)truepositives)/(truepositives+falsenegatives);
-          float specificity = ((float)truenegatives)/(truenegatives+falsepositives);
-
-          cout << infile << ", " << gt->size() << ", " << *cfile << ", " << candidate->size() << ", " << originalcloud << ", "  << original->size() << ", " << setintersection << ", " << setunion << ", "<< (((float)setintersection)/((float)setunion)) << ", "
-              << truepositives << ", " << truenegatives << ", " << falsepositives << ", " << falsenegatives << ", " << precision << ", " << recall << ", " << specificity  << endl;
+          precision = ((float)truepositives)/(truepositives+falsepositives);
+          recall = ((float)truepositives)/((float)gt->size());
+          //recall = ((float)truepositives)/(truepositives+falsenegatives);
+          //specificity = ((float)truenegatives)/(truenegatives+falsepositives);
         }
+
+        cout << infile << ", " << gt->size() << ", " << maxcfile << ", " << maxcfilesize << ", " << originalcloud << ", "  << original->size() << ", " << maxintersection << ", " << maxunion << ", "<< maxmetric << ", "
+            << truepositives << ", "
+            //<< truenegatives << ", "
+            << falsepositives << ", "
+            //<< falsenegatives << ", "
+            << precision << ", " << recall// << ", "
+            //<< specificity
+            << endl;
 
 	return (0);
 }
