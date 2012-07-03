@@ -18,8 +18,6 @@
 #include <pcl/search/octree.h>
 #include <pcl/search/kdtree.h>
 
-#include <pcl/features/don.h>
-
 using namespace pcl;
 using namespace std;
 
