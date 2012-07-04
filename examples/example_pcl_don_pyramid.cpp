@@ -40,6 +40,9 @@
 
 #include <pcl/features/don.h>
 
+#include <iostream>
+#include <fstream>
+
 using namespace pcl;
 using namespace boost::accumulators;
 using namespace std;
@@ -69,17 +72,24 @@ int main(int argc, char *argv[])
 
   double decimation;
 
+  ///The minimum DoN magnitude to threshold by
+  double threshold;
+
   // Declare the supported options.
   po::options_description desc("Program options");
   desc.add_options()
           //Program mode option
           ("help", "produce help message")
+          ("writeoutput", "write don results to files")
+          ("segment", "segment scene into clusters with given distance tolerance")
           //Options
           ("smallradius", po::value<double>(&radius1)->required(), "the smallest radius to use in the DoN filter")
           ("largeradius", po::value<double>(&radius2)->required(), "the largest radius to use in the DoN filter")
           ("radiusincrement", po::value<double>(&radiusincrement)->required(), "the largest radius to use in the DoN filter")
           ("modelfiles", po::value<vector<string> >(&modelfiles)->required(), "the files to read a point cloud model from")
           ("approx", po::value<double>(&decimation), "voxelization factor of pointcloud to use in approximation of normals")
+
+          ("magthreshold", po::value<double>(&threshold), "the minimum DoN magnitude to filter by")
           ;
 
   po::positional_options_description p;
@@ -104,6 +114,9 @@ int main(int argc, char *argv[])
 
   //cumulative stats for all models
   map< pair<float, float>, boost::shared_ptr<accumulator_t> > stats;
+
+  //the normal cache
+  map< float, pcl::PointCloud<PointNT>::Ptr > normals;
 
   for(vector<string>::iterator modelfile = modelfiles.begin(); modelfile != modelfiles.end(); modelfile++ )
   {
@@ -137,31 +150,14 @@ int main(int argc, char *argv[])
 
     PointCloud<PointT>::Ptr small_cloud_downsampled;
     PointCloud<PointT>::Ptr large_cloud_downsampled;
+    // Create the downsampling filtering object
+    pcl::VoxelGrid<PointT> sor;
+    sor.setDownsampleAllData (false);
+    sor.setInputCloud (cloud);
+
+
     for(float scale2 = radius1+radiusincrement; scale2 < radius2; scale2 += radiusincrement){
       for(float scale1 = radius1; scale1 < scale2; scale1+= radiusincrement){
-        // If we are using approximation
-        if(vm.count("approx")){
-          cout << "#Downsampling point cloud for approximation" << endl;
-
-          // Create the downsampling filtering object
-          pcl::VoxelGrid<PointT> sor;
-          sor.setDownsampleAllData (false);
-          sor.setInputCloud (cloud);
-
-          // Create downsampled point cloud for DoN NN search with small scale
-          small_cloud_downsampled = PointCloud<PointT>::Ptr(new pcl::PointCloud<PointT>);
-          const float smalldownsample = scale1/decimation;
-          sor.setLeafSize (smalldownsample, smalldownsample, smalldownsample);
-          sor.filter (*small_cloud_downsampled);
-          cout << "#Using leaf size of " << smalldownsample << " for small scale, " << small_cloud_downsampled->size() << " points" << endl;
-
-          // Create downsampled point cloud for DoN NN search with large scale
-          large_cloud_downsampled = PointCloud<PointT>::Ptr(new pcl::PointCloud<PointT>);
-          const float largedownsample = scale2/decimation;
-          sor.setLeafSize (largedownsample, largedownsample, largedownsample);
-          sor.filter (*large_cloud_downsampled);
-          cout << "#Using leaf size of " << largedownsample << " for large scale, " << large_cloud_downsampled->size() << " points" << endl;
-        }
 
         // Compute normals using both small and large scales at each point
         pcl::NormalEstimationOMP<PointT, PointNT> ne;
@@ -179,36 +175,48 @@ int main(int argc, char *argv[])
           exit(EXIT_FAILURE);
         }
 
-        //the normals calculated with the small scale
-        //cout << "Calculating normals for scale..." << scale1 << endl;
-        pcl::PointCloud<PointNT>::Ptr normals_small_scale (new pcl::PointCloud<PointNT>);
+        if(normals.find(scale1) == normals.end()){
+          normals.insert(make_pair(scale1, new pcl::PointCloud<PointNT>));
 
-        if(vm.count("approx")){
-          ne.setSearchSurface(small_cloud_downsampled);
+          if(vm.count("approx")){
+            // Create downsampled point cloud for DoN NN search with small scale
+            small_cloud_downsampled = PointCloud<PointT>::Ptr(new pcl::PointCloud<PointT>);
+            const float smalldownsample = scale1/decimation;
+            sor.setLeafSize (smalldownsample, smalldownsample, smalldownsample);
+            sor.filter (*small_cloud_downsampled);
+            cout << "Using leaf size of " << smalldownsample << " for small scale, " << small_cloud_downsampled->size() << " points" << endl;
+            ne.setSearchSurface(small_cloud_downsampled);
+          }
+          ne.setRadiusSearch (scale1);
+          ne.compute (*normals.at(scale1));
         }
-        ne.setRadiusSearch (scale1);
-        ne.compute (*normals_small_scale);
 
-        //cout << "Calculating normals for scale..." << scale2 << endl;
-        //the normals calculated with the large scale
-        pcl::PointCloud<PointNT>::Ptr normals_large_scale (new pcl::PointCloud<PointNT>);
+        if(normals.find(scale2) == normals.end()){
+          normals.insert(make_pair(scale2, new pcl::PointCloud<PointNT>));
 
-        if(vm.count("approx")){
-          ne.setSearchSurface(large_cloud_downsampled);
+          if(vm.count("approx")){
+            // Create downsampled point cloud for DoN NN search with large scale
+            large_cloud_downsampled = PointCloud<PointT>::Ptr(new pcl::PointCloud<PointT>);
+            const float largedownsample = scale2/decimation;
+            sor.setLeafSize (largedownsample, largedownsample, largedownsample);
+            sor.filter (*large_cloud_downsampled);
+            cout << "Using leaf size of " << largedownsample << " for large scale, " << large_cloud_downsampled->size() << " points" << endl;
+            ne.setSearchSurface(small_cloud_downsampled);
+          }
+          ne.setRadiusSearch (scale2);
+          ne.compute (*normals.at(scale2));
         }
-        ne.setRadiusSearch (scale2);
-        ne.compute (*normals_large_scale);
 
         // Create output cloud for DoN results
         PointCloud<PointOutT>::Ptr doncloud (new pcl::PointCloud<PointOutT>);
         copyPointCloud<PointT, PointOutT>(*cloud, *doncloud);
 
-        //cout << "Calculating DoN... " << endl;
+        cout << "DoN("<< scale1 << ", " << scale2  << ")"<< endl;
         // Create DoN operator
         pcl::DifferenceOfNormalsEstimation<PointT, PointNT, PointOutT> don;
         don.setInputCloud (cloud);
-        don.setNormalScaleLarge(normals_large_scale);
-        don.setNormalScaleSmall(normals_small_scale);
+        don.setNormalScaleLarge(normals.at(scale2));
+        don.setNormalScaleSmall(normals.at(scale1));
 
         if(!don.initCompute ()){
           std::cerr << "Error: Could not intialize DoN feature operator" << std::endl;
@@ -217,6 +225,15 @@ int main(int argc, char *argv[])
 
         //Compute DoN
         don.computeFeature(*doncloud);
+
+        pcl::PCDWriter writer;
+
+        //save results
+        if(vm.count("writeoutput")){
+          std::stringstream ss;
+          ss << modelfile->substr(0,modelfile->length()-4) << "_don_"<< scale1 << "_" << scale2 << ".pcd";
+          writer.writeBinaryCompressed<PointOutT> (ss.str (), *doncloud);
+        }
 
         //Find statistics for the given model
         //mean, median, maximum, minimum and stddev
@@ -237,32 +254,103 @@ int main(int argc, char *argv[])
             (*(stats.at(scalekey)))(mag);
           }
         }
+
+        //Filter by magnitude
+        if(vm.count("writeoutput") && vm.count("magthreshold")){
+          //cout << "Filtering out DoN mag <= "<< threshold <<  "..." << endl;
+
+          // build the condition
+          pcl::ConditionOr<PointOutT>::Ptr range_cond (new
+                pcl::ConditionOr<PointOutT> ());
+          range_cond->addComparison (pcl::FieldComparison<PointOutT>::ConstPtr (new
+                pcl::FieldComparison<PointOutT> ("curvature", pcl::ComparisonOps::GT, threshold)));
+          // build the filter
+          pcl::ConditionalRemoval<PointOutT> condrem (range_cond);
+          condrem.setInputCloud (doncloud);
+
+          pcl::PointCloud<PointOutT>::Ptr doncloud_filtered (new pcl::PointCloud<PointOutT>);
+
+          // apply filter
+          condrem.filter (*doncloud_filtered);
+
+          doncloud = doncloud_filtered;
+
+          // Save filtered output
+          //std::cout << "Filtered Pointcloud: " << doncloud->points.size () << " data points." << std::endl;
+          std::stringstream ss;
+
+          ss << modelfile->substr(0,modelfile->length()-4) << "_don_"<< scale1 << "_" << scale2 << "_threshold_"<< threshold << ".pcd";
+          writer.writeBinaryCompressed<PointOutT> (ss.str(), *doncloud);
+
+          if(vm.count("segment")){
+            double segradius = scale1*2;
+
+            pcl::search::KdTree<PointOutT>::Ptr segtree (new pcl::search::KdTree<PointOutT>);
+            segtree->setInputCloud (doncloud);
+
+            std::vector<pcl::PointIndices> cluster_indices;
+            pcl::EuclideanClusterExtraction<PointOutT> ec;
+
+            ec.setClusterTolerance (segradius);
+            ec.setMinClusterSize (50);
+            ec.setMaxClusterSize (100000);
+            ec.setSearchMethod (segtree);
+            ec.setInputCloud (doncloud);
+            ec.extract (cluster_indices);
+
+            int j = 0;
+            for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it, j++)
+            {
+              pcl::PointCloud<PointOutT>::Ptr cloud_cluster_don (new pcl::PointCloud<PointOutT>);
+              for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); pit++){
+                cloud_cluster_don->points.push_back (doncloud->points[*pit]);
+              }
+
+              cloud_cluster_don->width = cloud_cluster_don->points.size ();
+              cloud_cluster_don->height = 1;
+              cloud_cluster_don->is_dense = true;
+
+              //std::cout << "PointCloud representing the Cluster: " << cloud_cluster_don->points.size () << " data points." << std::endl;
+              std::stringstream ss;
+              ss << modelfile->substr(0,modelfile->length()-4) << "_don_"<< scale1 << "_" << scale2 << "_threshold_"<< threshold << "_cluster_" << j << ".pcd";
+              writer.writeBinaryCompressed<PointOutT> (ss.str (), *cloud_cluster_don);
+            }
+          }
+
+        }
       }
     }
-  }
+    std::stringstream sss;
+    sss << modelfile->substr(0,modelfile->length()-4) << ".csv";
+    ofstream statsfile(sss.str().c_str());
 
-  std::cout << "#r_s, r_l, min, max, count, sum, median, mean, variance" << std::endl;
+    statsfile << "#r_s, r_l, min, max, count, sum, median, mean, variance" << std::endl;
 
-  for(map< pair<float, float>, boost::shared_ptr<accumulator_t> >::iterator i = stats.begin(); i != stats.end(); i++){
-    std::cout << i->first.first << ", "
-        << i->first.second << ", "
-        << boost::accumulators::extract::min(*i->second) << ", "
-        << boost::accumulators::extract::max(*i->second) << ", "
-        << boost::accumulators::extract::count(*i->second) << ", "
-        << sum(*i->second) << ", "
-        << median(*i->second) << ", "
-        << mean(*i->second) << ", "
-        << variance(*i->second) << std::endl;
-    //for missing data
-    std::cout << i->first.second << ", "
-            << i->first.first << ", "
-            << 0 << ", "
-            << 0 << ", "
-            << 0 << ", "
-            << 0 << ", "
-            << 0 << ", "
-            << 0 << ", "
-            << 0 << std::endl;
+    for(map< pair<float, float>, boost::shared_ptr<accumulator_t> >::iterator i = stats.begin(); i != stats.end(); i++){
+      statsfile << i->first.first << ", "
+          << i->first.second << ", "
+          << boost::accumulators::extract::min(*i->second) << ", "
+          << boost::accumulators::extract::max(*i->second) << ", "
+          << boost::accumulators::extract::count(*i->second) << ", "
+          << sum(*i->second) << ", "
+          << median(*i->second) << ", "
+          << mean(*i->second) << ", "
+          << variance(*i->second) << std::endl;
+      //for missing data
+      statsfile << i->first.second << ", "
+              << i->first.first << ", "
+              << 0 << ", "
+              << 0 << ", "
+              << 0 << ", "
+              << 0 << ", "
+              << 0 << ", "
+              << 0 << ", "
+              << 0 << std::endl;
+    }
+
+    statsfile.close();
+
+    stats.clear();
   }
 
   return (0);
