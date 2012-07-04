@@ -52,6 +52,8 @@ int main(int argc, char *argv[])
         ///The euclidian cluster distance to use
         double segradius;
 
+        pcl::PCDWriter writer;
+
 	// Declare the supported options.
 	po::options_description desc("Program options");
 	desc.add_options()
@@ -205,8 +207,6 @@ int main(int argc, char *argv[])
           ec.setInputCloud (doncloud);
           ec.extract (cluster_indices);
 
-          pcl::PCDWriter writer;
-
           int j = 0;
           for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
           {
@@ -221,7 +221,7 @@ int main(int argc, char *argv[])
             std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size () << " data points." << std::endl;
             std::stringstream ss;
             ss << "cloud_cluster_" << j << ".pcd";
-            writer.write<PointOutT> (ss.str (), *cloud_cluster, false); //*
+            writer.writeBinaryCompressed<PointOutT> (ss.str (), *cloud_cluster);
 
             j++;
           }
@@ -230,7 +230,7 @@ int main(int argc, char *argv[])
 	// Save filtered output
 	sensor_msgs::PointCloud2 outblob;
 	pcl::toROSMsg(*doncloud, outblob);
-	pcl::io::savePCDFile (outfile.c_str (), outblob);
+        writer.writeBinaryCompressed(outfile.c_str (), outblob);
 
 	return (0);
 }

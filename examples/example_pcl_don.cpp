@@ -205,7 +205,7 @@ int main(int argc, char *argv[])
         pcl::PCDWriter writer;
 
         // Save DoN features
-        writer.write<PointOutT> (outfile.c_str (), *doncloud, false);
+        writer.writeBinaryCompressed<PointOutT> (outfile, *doncloud);
 
 	//Filter by magnitude
 	if(vm.count("magthreshold")){
@@ -231,7 +231,7 @@ int main(int argc, char *argv[])
           std::cout << "Filtered Pointcloud: " << doncloud->points.size () << " data points." << std::endl;
           std::stringstream ss;
           ss << outfile.substr(0,outfile.length()-4) << "_threshold_"<< threshold << "_.pcd";
-          writer.write<PointOutT> (ss.str (), *doncloud, false);
+          writer.writeBinaryCompressed<PointOutT> (outfile, *doncloud);
 
 	}
 
@@ -267,7 +267,7 @@ int main(int argc, char *argv[])
 		std::cout << "PointCloud representing the Cluster: " << cloud_cluster_don->points.size () << " data points." << std::endl;
 		std::stringstream ss;
 		ss << outfile.substr(0,outfile.length()-4) << "_threshold_"<< threshold << "_cluster_" << j << ".pcd";
-		writer.write<PointOutT> (ss.str (), *cloud_cluster_don, false);
+	        writer.writeBinaryCompressed<PointOutT> (ss.str (), *cloud_cluster_don);
 
 		if(!vm.count("meshclusters")){
 		  continue;
