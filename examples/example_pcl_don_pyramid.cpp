@@ -120,6 +120,9 @@ int main(int argc, char *argv[])
 
   for(vector<string>::iterator modelfile = modelfiles.begin(); modelfile != modelfiles.end(); modelfile++ )
   {
+    //reset the normal cache
+    normals.clear();
+
     pcl::io::loadPCDFile (modelfile->c_str(), blob);
 
     pcl::PointCloud<PointT>::Ptr cloud (new pcl::PointCloud<PointT>);
