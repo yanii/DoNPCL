@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
   //the file to output stats to
   ofstream statsfile;
   if(vm.count("statsfile")){
-    statsfile.open(csvfile, ios::out | ios::app);
+    statsfile.open(csvfile.c_str(), ios::out | ios::app);
     if(!statsfile.good()){
       cerr << "Could not open file " << csvfile << " for writing." << endl;
       exit(EXIT_FAILURE);
