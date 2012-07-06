@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
           ("radiusincrement", po::value<double>(&radiusincrement)->required(), "the largest radius to use in the DoN filter")
           ("modelfiles", po::value<vector<string> >(&modelfiles)->required(), "the files to read a point cloud model from")
           ("approx", po::value<double>(&decimation), "voxelization factor of pointcloud to use in approximation of normals")
-          ("statsfile", po::value<string>(&csvfile), "append statistics to given files")
+          ("statsfile", po::value<string>(&csvfile), "write aggregate statistics for all models to given files")
           ("magthreshold", po::value<double>(&threshold), "the minimum DoN magnitude to filter by")
           ;
 
@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
   //the file to output stats to
   ofstream statsfile;
   if(vm.count("statsfile")){
-    statsfile.open(csvfile.c_str(), ios::out | ios::app);
+    statsfile.open(csvfile.c_str(), ios::out);
     if(!statsfile.good()){
       cerr << "Could not open file " << csvfile << " for writing." << endl;
       exit(EXIT_FAILURE);
@@ -337,32 +337,32 @@ int main(int argc, char *argv[])
         }
       }
     }
-    if(vm.count("statsfile")){
-      for(map< pair<float, float>, boost::shared_ptr<accumulator_t> >::iterator i = stats.begin(); i != stats.end(); i++){
-        statsfile << i->first.first << ", "
-            << i->first.second << ", "
-            << boost::accumulators::extract::min(*i->second) << ", "
-            << boost::accumulators::extract::max(*i->second) << ", "
-            << boost::accumulators::extract::count(*i->second) << ", "
-            << sum(*i->second) << ", "
-            << median(*i->second) << ", "
-            << mean(*i->second) << ", "
-            << variance(*i->second) << std::endl;
-        //for missing data
-        statsfile << i->first.second << ", "
-                << i->first.first << ", "
-                << 0 << ", "
-                << 0 << ", "
-                << 0 << ", "
-                << 0 << ", "
-                << 0 << ", "
-                << 0 << ", "
-                << 0 << std::endl;
-      }
-    }
-    stats.clear();
   }
 
+  if(vm.count("statsfile")){
+    for(map< pair<float, float>, boost::shared_ptr<accumulator_t> >::iterator i = stats.begin(); i != stats.end(); i++){
+      statsfile << i->first.first << ", "
+          << i->first.second << ", "
+          << boost::accumulators::extract::min(*i->second) << ", "
+          << boost::accumulators::extract::max(*i->second) << ", "
+          << boost::accumulators::extract::count(*i->second) << ", "
+          << sum(*i->second) << ", "
+          << median(*i->second) << ", "
+          << mean(*i->second) << ", "
+          << variance(*i->second) << std::endl;
+      //for missing data
+      statsfile << i->first.second << ", "
+              << i->first.first << ", "
+              << 0 << ", "
+              << 0 << ", "
+              << 0 << ", "
+              << 0 << ", "
+              << 0 << ", "
+              << 0 << ", "
+              << 0 << std::endl;
+    }
+  }
+  stats.clear();
 
   if(vm.count("statsfile")){
     statsfile.close();
