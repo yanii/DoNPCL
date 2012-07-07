@@ -82,14 +82,14 @@ int main(int argc, char *argv[])
         pcl::io::loadPCDFile (originalcloud.c_str(), blob);
         pcl::fromROSMsg (blob, *original);
 
-        cout << "#"<< "ground truth" << ", " << "ground truth size" << ", " << "candidate" << ", " << "candidate size" << ", " << "original pointcloud" << ", "  << "original pointcloud size" << ", " << "setintersection" << ", " << "setunion" << ", "<< "intersection/union" << ", "
+        /*cout << "#"<< "ground truth" << ", " << "ground truth size" << ", " << "candidate" << ", " << "candidate size" << ", " << "original pointcloud" << ", "  << "original pointcloud size" << ", " << "setintersection" << ", " << "setunion" << ", "<< "intersection/union" << ", "
             << "true positives" << ", "
             //<< "true negatives" << ", "
             << "false positives" << ", "
             //<< "falsenegatives" << ", "
             << "precision" << ", " << "recall" //<< ", "
             //<< "specificity"
-            << endl;
+            << endl;*/
 
 	SearchPtr tree;
 
@@ -110,6 +110,12 @@ int main(int argc, char *argv[])
         unsigned int maxunion = 0;
         string maxcfile;
         unsigned int maxcfilesize = 0;
+
+        int maxtruepositives = 0;
+        int maxfalsepositives = 0;
+        float maxprecision = 0;
+        float maxrecall = 0;
+
 
         unsigned int setintersection = 0;
         unsigned int setunion = 0;
@@ -151,14 +157,9 @@ int main(int argc, char *argv[])
           setunion = gt->size() + candidate->size() - setintersection;
           metric = (((float)setintersection)/((float)setunion));
 
-          if(setintersection == 0 || maxintersection > setintersection){
+          if(setintersection == 0)
+          {
             continue;
-          }else{
-            maxintersection = setintersection;
-            maxunion = setunion;
-            maxmetric = metric;
-            maxcfile = *cfile;
-            maxcfilesize = cfile->size();
           }
 
           truepositives = setintersection;
@@ -199,14 +200,35 @@ int main(int argc, char *argv[])
           recall = ((float)truepositives)/((float)gt->size());
           //recall = ((float)truepositives)/(truepositives+falsenegatives);
           //specificity = ((float)truenegatives)/(truenegatives+falsepositives);
-        }
-
-        cout << infile << ", " << gt->size() << ", " << maxcfile << ", " << maxcfilesize << ", " << originalcloud << ", "  << original->size() << ", " << maxintersection << ", " << maxunion << ", "<< maxmetric << ", "
+          cout << infile << ", " << gt->size() << ", " << *cfile << ", " << cfile->size() << ", " << originalcloud << ", "  << original->size() << ", " << setintersection << ", " << setunion << ", "<< metric << ", "
             << truepositives << ", "
             //<< truenegatives << ", "
             << falsepositives << ", "
             //<< falsenegatives << ", "
             << precision << ", " << recall// << ", "
+            //<< specificity
+            << endl;
+
+
+          if(maxintersection < setintersection){
+            maxintersection = setintersection;
+            maxunion = setunion;
+            maxmetric = metric;
+            maxcfile = *cfile;
+            maxcfilesize = cfile->size();
+            maxtruepositives = truepositives;
+            maxfalsepositives = falsepositives;
+            maxprecision = precision;
+            maxrecall = recall;
+          }
+        }
+
+        cout << "#MAX: " << infile << ", " << gt->size() << ", " << maxcfile << ", " << maxcfilesize << ", " << originalcloud << ", "  << original->size() << ", " << maxintersection << ", " << maxunion << ", "<< maxmetric << ", "
+            << maxtruepositives << ", "
+            //<< truenegatives << ", "
+            << maxfalsepositives << ", "
+            //<< falsenegatives << ", "
+            << maxprecision << ", " << maxrecall// << ", "
             //<< specificity
             << endl;
 
